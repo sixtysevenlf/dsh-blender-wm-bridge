@@ -25,7 +25,7 @@ export function writeHeadlessScript(code) {
   const reqShared = wslPathShared(requested);
   // 候选：请求的 workDir（判为不可共享时降级）→ 用户 home（发行版根文件系统，Windows 可见）→ 包内 tmp
   const wanted = { dir: requested, win: blenderJoin(WIN_TMP, name), label: 'workDir' };
-  const homeTmp = { dir: path.join(os.homedir(), '.dsh', 'dsh-blender-rt'), win: null, label: 'fallback:home' };
+  const homeTmp = { dir: path.join(os.homedir(), '.dsh', 'dsh-blender-wm-rt'), win: null, label: 'fallback:home' };
   const pkgTmp = { dir: path.join(HERE, 'tmp'), win: null, label: 'fallback:pkg' };
   const cands = (reqShared.shared === false) ? [homeTmp, pkgTmp, wanted] : [wanted, homeTmp, pkgTmp];
   const errs = [];

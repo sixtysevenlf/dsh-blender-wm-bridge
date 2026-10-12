@@ -86,13 +86,13 @@ if (toolsDir) {
     console.error('probe: 解包失败'); process.exit(2)
   }
 }
-// v0.9.6 起 lib/index.js 用 `../runtime/*.mjs`（以及 `../dsh-blender.config.json`）解析包内路径；
+// v0.9.6 起 lib/index.js 用 `../runtime/*.mjs`（以及 `../dsh-blender-wm.config.json`）解析包内路径；
 // 只拷 index.mjs 会让 staging 树缺 runtime/，载入即 ERR_MODULE_NOT_FOUND —— 探针必须按包根布局铺开。
 const pluginRoot = resolve(dirname(pluginLib), '..')
 cpSync(pluginLib, join(root, 'plugin', 'index.mjs'))
 cpSync(join(pluginRoot, 'runtime'), join(root, 'runtime'), { recursive: true })
-if (existsSync(join(pluginRoot, 'dsh-blender.config.json'))) {
-  cpSync(join(pluginRoot, 'dsh-blender.config.json'), join(root, 'dsh-blender.config.json'))
+if (existsSync(join(pluginRoot, 'dsh-blender-wm.config.json'))) {
+  cpSync(join(pluginRoot, 'dsh-blender-wm.config.json'), join(root, 'dsh-blender-wm.config.json'))
 }
 
 const inner = join(root, 'inner.mjs')
@@ -154,7 +154,7 @@ if (argv.includes('--smoke')) {
     const mod = await import(pathToFileURL(root + '/plugin/index.mjs').href)
     const regs = []
     const ctx = { effect(fn) { try { fn() } catch (e) {} return () => {} }, get() { return undefined }, on() {}, plugin() {}, tools: { register(d) { regs.push(d); return () => {} } } }
-    mod.apply(ctx, { port: Number(process.argv[2] || 9877), autoStart: false })
+    mod.apply(ctx, { port: Number(process.argv[2] || 9887), autoStart: false })
     const vp = regs.find((t) => t.name === 'blender_viewport')
     const ac = new AbortController(); ac.abort()
     const t0 = Date.now()

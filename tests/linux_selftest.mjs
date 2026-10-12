@@ -102,7 +102,7 @@ if (IS_WIN || IS_MAC || IS_WSL) {
   console.log('  note 当前不是原生 Linux（platform=' + process.platform + ', IS_WSL=' + IS_WSL
     + '），跳过本段 —— 该分支的判据由 [1] 的决策表覆盖');
 } else {
-  const abs = '/home/someone/.dsh-blender-rt';
+  const abs = '/home/someone/.dsh-blender-wm-rt';
   eq('wslToWin 对原生 Linux 绝对路径恒等（这正是 issue #11 的修复点）', cfg.wslToWin(abs), abs);
   ok('不产生 UNC', !String(cfg.wslToWin(abs)).includes('wsl.localhost'), cfg.wslToWin(abs));
   ok('不引入反斜杠', !String(cfg.wslToWin(abs)).includes('\\'), cfg.wslToWin(abs));

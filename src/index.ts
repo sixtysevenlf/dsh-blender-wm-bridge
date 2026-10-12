@@ -1,9 +1,9 @@
 // @ts-nocheck
 /**
- * @dsh-external/dsh-blender-plugin —— host 侧（10 个工具）。
+ * @dsh-external/dsh-blender-wm-bridge —— host 侧（10 个工具）。
  *
  * 唯一职责：**给模型低延迟的「看 / 做 / 连续看 / 重活」原语**
- * （后端 runtime/server.mjs 127.0.0.1:9877 → 直连 addon socket 127.0.0.1:9876）：
+ * （后端 runtime/server.mjs 127.0.0.1:9887 → 直连 addon socket 127.0.0.1:9886）：
  *       blender_rt_see      取一帧视口 / 自定义视角（不动物体、不动用户视口）
  *       blender_rt_do       跑一段 Python + 立刻回一帧（整步 ~105ms）
  *       blender_rt_watch    指定时间窗内连续采样若干帧（看动画/交互行为）
@@ -214,12 +214,12 @@ if (!schemaResolve.z) {
 }
 const z: any = schemaResolve.z
 
-export const name = '@dsh-external/dsh-blender-plugin'
+export const name = '@dsh-external/dsh-blender-wm-bridge'
 export const inject = ['tools']
 
 // 后端与 Blender 侧模块都放在插件包的 runtime/ 下 → 整个包可搬到任意目录（WSL 或 Windows）
 const HERE = path.dirname(fileURLToPath(import.meta.url))
-const SERVER_PATH = process.env.DSH_BLENDER_SERVER || path.join(HERE, '..', 'runtime', 'server.mjs')
+const SERVER_PATH = process.env.DSH_BLENDER_WM_SERVER || path.join(HERE, '..', 'runtime', 'server.mjs')
 const HOSTNAME = '127.0.0.1'
 
 export interface Config {
@@ -229,16 +229,16 @@ export interface Config {
 
 /**
  * 端口解析（与 runtime/config.mjs 同一套来源，避免两处配置漂移）：
- *   插件配置 port → DSH_BLENDER_HTTP_PORT → $DSH_BLENDER_CONFIG → <包根>/dsh-blender.config.json
- *   → ~/.dsh/dsh-blender.config.json → 9877
+ *   插件配置 port → DSH_BLENDER_WM_HTTP_PORT → $DSH_BLENDER_WM_CONFIG → <包根>/dsh-blender-wm.config.json
+ *   → ~/.dsh/dsh-blender-wm.config.json → 9887
  */
 function resolveHttpPort(): number {
-  const env = Number(process.env.DSH_BLENDER_HTTP_PORT)
+  const env = Number(process.env.DSH_BLENDER_WM_HTTP_PORT)
   if (Number.isFinite(env) && env > 0) return env
   const cands = [
-    process.env.DSH_BLENDER_CONFIG,
-    path.join(HERE, '..', 'dsh-blender.config.json'),
-    path.join(os.homedir(), '.dsh', 'dsh-blender.config.json'),
+    process.env.DSH_BLENDER_WM_CONFIG,
+    path.join(HERE, '..', 'dsh-blender-wm.config.json'),
+    path.join(os.homedir(), '.dsh', 'dsh-blender-wm.config.json'),
   ].filter(Boolean) as string[]
   for (const p of cands) {
     try {
@@ -247,11 +247,11 @@ function resolveHttpPort(): number {
       if (Number.isFinite(n) && n > 0) return n
     } catch (e) { /* 没这个文件或不是 JSON：跳过 */ }
   }
-  return 9877
+  return 9887
 }
 /** 后端未就绪时的统一提示（不假设任何本机路径） */
 const BACKEND_HINT = '先确认 Blender 在运行且 addon（MCP for Blender）已 Connect；然后 blender_viewport op=start 拉起后端。'
-  + '端口/工作目录/blender.exe 可用 DSH_BLENDER_* 环境变量或包根 dsh-blender.config.json 配置（见 docs/配置参考.md）。'
+  + '端口/工作目录/blender.exe 可用 DSH_BLENDER_WM_* 环境变量或包根 dsh-blender-wm.config.json 配置（见 docs/配置参考.md）。'
 
 /**
  * v0.9.2（R3）：给宿主的**静态**截止时间 —— defineTool 只收常量，不能按参数动态给。
@@ -416,7 +416,7 @@ function killBackendByCmd(port: number, signal: NodeJS.Signals = 'SIGTERM'): str
   }
   for (const r of rows) {
     // ★ v1.0.1+S10（自伤修复）：按 **argv token** 精确匹配，绝不拿整条 cmdline 做子串匹配 ——
-    //   调用方的 `bash -c "... node runtime/server.mjs --port 9877 ..."` 命令行同样含这两个串，
+    //   调用方的 `bash -c "... node runtime/server.mjs --port 9887 ..."` 命令行同样含这两个串，
     //   子串匹配会把调用方自己的 shell 一起 SIGKILL 掉（2026-09-29 实测踩到，A/B 当场抓出）。
     let isServer = false
     let portOk = false
@@ -466,7 +466,7 @@ async function backendJson(port: number, path: string, timeoutMs = 20000, init?:
 }
 
 /** 本会话在写通道上的身份（租约 holder）；跨会话共用同一个后端时用它区分 */
-const HOLDER = process.env.DSH_BLENDER_HOLDER || ('plugin-pid-' + String(process.pid))
+const HOLDER = process.env.DSH_BLENDER_WM_HOLDER || ('plugin-pid-' + String(process.pid))
 
 /**
  * 解析后端响应（v0.8.9 修）：后端有两种形态 ——
@@ -982,7 +982,7 @@ const HINT_KERNEL = '持久内核：K.x = 1 这次写，下次调用还能读到
  */
 function registerSchemaDiagnostic(ctx: any): void {
   const text = [
-    '⛔ @dsh-external/dsh-blender-plugin 以**降级模式**加载：schemastery 未能解析，15 个 blender_rt_* 工具都未注册（这是**可读的失败**，不是插件消失）。',
+    '⛔ @dsh-external/dsh-blender-wm-bridge 以**降级模式**加载：schemastery 未能解析，15 个 blender_rt_* 工具都未注册（这是**可读的失败**，不是插件消失）。',
     '原因：' + String(schemaResolve.error || '(未知)'),
     '试过的名字与错误：' + (schemaResolve.tried.length ? schemaResolve.tried.join(' / ') : '(空)'),
     '修法：让宿主能解析到 @deepseek-ai/schemastery 或 schemastery 任一（同一份包的两种发布形态）；若用的是只提供带 scope 名的宿主，请升级到含本修复的版本。',
@@ -996,7 +996,7 @@ function registerSchemaDiagnostic(ctx: any): void {
     isConcurrencySafe: () => true,
     timeoutMs: 10000,
     async execute() { return text },
-  })), '@dsh-external/dsh-blender-plugin: degraded-schema')
+  })), '@dsh-external/dsh-blender-wm-bridge: degraded-schema')
 }
 
 export function apply(ctx: any, config: Config): void {
@@ -1041,11 +1041,11 @@ export function apply(ctx: any, config: Config): void {
       })()
     }, 15000)
     return () => clearInterval(wd)
-  }, '@dsh-external/dsh-blender-plugin: watchdog')
+  }, '@dsh-external/dsh-blender-wm-bridge: watchdog')
 
   ctx.effect(() => () => {
     if (child) { try { child.kill() } catch (e) {} child = null }
-  }, '@dsh-external/dsh-blender-plugin: backend')
+  }, '@dsh-external/dsh-blender-wm-bridge: backend')
 
   // ---------- A. AI 实时交互原语 ----------
 
@@ -1143,7 +1143,7 @@ export function apply(ctx: any, config: Config): void {
       }
       return out
     },
-  })), '@dsh-external/dsh-blender-plugin: rt-see')
+  })), '@dsh-external/dsh-blender-wm-bridge: rt-see')
 
   ctx.effect(() => ctx.tools.register(vTool({
     name: 'blender_rt_do',
@@ -1203,7 +1203,7 @@ export function apply(ctx: any, config: Config): void {
       if (image) out.image = image
       return out
     },
-  })), '@dsh-external/dsh-blender-plugin: rt-do')
+  })), '@dsh-external/dsh-blender-wm-bridge: rt-do')
 
   ctx.effect(() => ctx.tools.register(vTool({
     name: 'blender_rt_watch',
@@ -1269,7 +1269,7 @@ export function apply(ctx: any, config: Config): void {
       if (images.length) out.images = images
       return out
     },
-  })), '@dsh-external/dsh-blender-plugin: rt-watch')
+  })), '@dsh-external/dsh-blender-wm-bridge: rt-watch')
 
   ctx.effect(() => ctx.tools.register(vTool({
     name: 'blender_rt_cmd',
@@ -1294,7 +1294,7 @@ export function apply(ctx: any, config: Config): void {
       const head = 'CMD ' + name + ' ok · ' + String(r.ms) + 'ms · ' + String(payload.length) + ' chars'
       return { text: head + '\n' + (payload.length > 3000 ? payload.slice(0, 3000) + '\n…(已截断)' : payload) }
     },
-  })), '@dsh-external/dsh-blender-plugin: rt-cmd')
+  })), '@dsh-external/dsh-blender-wm-bridge: rt-cmd')
 
   ctx.effect(() => ctx.tools.register(vTool({
     name: 'blender_rt_commands',
@@ -1319,7 +1319,7 @@ export function apply(ctx: any, config: Config): void {
       lines.push('可用：' + (r.available || []).join(', '))
       return { text: lines.join('\n') }
     },
-  })), '@dsh-external/dsh-blender-plugin: rt-commands')
+  })), '@dsh-external/dsh-blender-wm-bridge: rt-commands')
 
   ctx.effect(() => ctx.tools.register(vTool({
     name: 'blender_rt_loop',
@@ -1368,7 +1368,7 @@ export function apply(ctx: any, config: Config): void {
       if (!r || r.ok !== true) return { text: 'LOOP ' + op + ' 失败 · ' + String((r && (r.error || r.raw)) || 'unknown') }
       return { text: 'LOOP ' + op + ' ' + JSON.stringify(r.result) }
     },
-  })), '@dsh-external/dsh-blender-plugin: rt-loop')
+  })), '@dsh-external/dsh-blender-wm-bridge: rt-loop')
 
   ctx.effect(() => ctx.tools.register(vTool({
     name: 'blender_rt_perf',
@@ -1391,7 +1391,7 @@ export function apply(ctx: any, config: Config): void {
       if (!r || r.ok !== true) return { text: 'PERF ' + op + ' 失败 · ' + String((r && (r.error || r.raw)) || 'unknown') }
       return { text: 'PERF ' + op + ' ' + JSON.stringify(r.result) }
     },
-  })), '@dsh-external/dsh-blender-plugin: rt-perf')
+  })), '@dsh-external/dsh-blender-wm-bridge: rt-perf')
 
   ctx.effect(() => ctx.tools.register(vTool({
     name: 'blender_rt_opt',
@@ -1413,7 +1413,7 @@ export function apply(ctx: any, config: Config): void {
       if (!r || r.ok !== true) return { text: 'OPT ' + op + ' 失败 · ' + String((r && (r.error || r.raw)) || 'unknown') }
       return { text: 'OPT ' + op + ' ' + JSON.stringify(r.result) }
     },
-  })), '@dsh-external/dsh-blender-plugin: rt-opt')
+  })), '@dsh-external/dsh-blender-wm-bridge: rt-opt')
 
   ctx.effect(() => ctx.tools.register(vTool({
     name: 'blender_rt_headless',
@@ -1525,11 +1525,11 @@ export function apply(ctx: any, config: Config): void {
       if (beats > 0) out.text += String.fromCharCode(10) + '（本次耗时 > 15 s，后端走了流式回执：' + String(beats) + ' 条心跳后收到结果）'
       return out
     },
-  })), '@dsh-external/dsh-blender-plugin: rt-headless')
+  })), '@dsh-external/dsh-blender-wm-bridge: rt-headless')
 
   ctx.effect(() => ctx.tools.register(vTool({
     name: 'blender_rt_plan',
-    description: '[v' + PLUGIN_VERSION + '] 【判定 / 验收 / 导出 / 造型】28 个 family · 184 个 op 都在这一个工具里。'
+    description: '[v' + PLUGIN_VERSION + '] 【判定 / 验收 / 导出 / 造型】28 个 family · 186 个 op 都在这一个工具里。'
       + '**不确定用哪个就先问目录：op="catalog"**（本地直出，不占 Blender 往返；含"什么时候用 / 别用 / 最小骨架"）；'
       + '单族展开 op="catalog", args={family:"audit"}；算子细节用各 family 自己的 <family>_help。'
       + '常用速查：audit_scene|audit_mesh（网格体检）· audit_gate（出厂门：连通+包络）· audit_interference|audit_overlap（干涉/重叠，可跨 .blend）· '
@@ -1574,7 +1574,7 @@ export function apply(ctx: any, config: Config): void {
       const CAP = 12000
       return { text: 'PLAN ' + op + ' ok · ' + String(txt.length) + ' chars\n' + (txt.length > CAP ? txt.slice(0, CAP) + String.fromCharCode(10) + '…[已截断，共 ' + String(txt.length) + ' 字符；结构化全量见后端 results/ 目录或用 headless(outJson=…) 落盘]' : txt) }
     },
-  })), '@dsh-external/dsh-blender-plugin: rt-plan')
+  })), '@dsh-external/dsh-blender-wm-bridge: rt-plan')
 
   ctx.effect(() => ctx.tools.register(vTool({
     name: 'blender_rt_worker',
@@ -1644,7 +1644,7 @@ export function apply(ctx: any, config: Config): void {
       if (res.stdoutTail) parts2.push('worker stdout 尾：' + String(res.stdoutTail).slice(-800))
       return { text: parts2.join('\n') }
     },
-  })), '@dsh-external/dsh-blender-plugin: rt-worker')
+  })), '@dsh-external/dsh-blender-wm-bridge: rt-worker')
 
   ctx.effect(() => ctx.tools.register(vTool({
     name: 'blender_rt_txn',
@@ -1687,7 +1687,7 @@ export function apply(ctx: any, config: Config): void {
       else parts.push(JSON.stringify(res).slice(0, 800))
       return { text: parts.join(String.fromCharCode(10)) }
     },
-  })), '@dsh-external/dsh-blender-plugin: rt-txn')
+  })), '@dsh-external/dsh-blender-wm-bridge: rt-txn')
 
   ctx.effect(() => ctx.tools.register(vTool({
     name: 'blender_rt_preset',
@@ -1744,7 +1744,7 @@ export function apply(ctx: any, config: Config): void {
       } else parts.push(JSON.stringify(res).slice(0, 900))
       return { text: parts.join(String.fromCharCode(10)) }
     },
-  })), '@dsh-external/dsh-blender-plugin: rt-preset')
+  })), '@dsh-external/dsh-blender-wm-bridge: rt-preset')
 
   ctx.effect(() => ctx.tools.register(vTool({
     name: 'blender_rt_job',
@@ -1854,7 +1854,7 @@ export function apply(ctx: any, config: Config): void {
       if (j.kind === 'headless' || String(j.id || '').indexOf('run-') === 0) notes.push('这是 blender_rt_headless 的运行台账（run 与 job 同一 id 空间）')
       return headlessReceipt(j, { mode: 'job', jobId: ctx2.jobId, runId: j.runId || null, notes: notes })
     },
-  })), '@dsh-external/dsh-blender-plugin: rt-job')
+  })), '@dsh-external/dsh-blender-wm-bridge: rt-job')
 
   // ---------- 运维 ----------
 
@@ -2041,7 +2041,7 @@ export function apply(ctx: any, config: Config): void {
         return JSON.stringify({ running: false, url: base(port) + '/', error: String((e && e.message) || e), hint: '用 blender_viewport op=start 拉起' })
       }
     },
-  })), '@dsh-external/dsh-blender-plugin: tool')
+  })), '@dsh-external/dsh-blender-wm-bridge: tool')
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

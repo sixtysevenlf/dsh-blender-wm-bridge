@@ -1348,7 +1348,7 @@ def _features_path():
 
     为什么不能只写 os.path.dirname(__file__)：本模块在**源码注入**通道下运行（引擎 ensureContract /
     headless preload 都是把源码拼进临时脚本 exec），此时 __file__ 指向那个临时脚本
-    （实测踩坑：D:\\DSH\\blender\\tmp\\dsh_headless_*.py），dirname 出来的目录里当然没有特征库。
+    （实测踩坑：D:\\DSH\\blender-wm\\tmp\\dsh_headless_*.py），dirname 出来的目录里当然没有特征库。
     所以依次试：__file__ 同目录 → K.runtime_dir（引擎注入的权威 runtime 目录，qc.py 加载同目录
     模块用的就是它）→ 相对本文件 ../runtime（tests/ 下直接跑时）。
     """

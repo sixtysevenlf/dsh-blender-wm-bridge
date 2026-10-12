@@ -18,7 +18,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
-const BASE = process.env.DSH_BLENDER_BACKEND || "http://127.0.0.1:9877";
+const BASE = process.env.DSH_BLENDER_WM_BACKEND || "http://127.0.0.1:9887";
 const engine = await import(pathToFileURL(path.join(ROOT, "runtime", "engine.mjs")).href);
 
 let pass = 0;

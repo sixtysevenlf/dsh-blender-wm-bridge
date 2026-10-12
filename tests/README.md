@@ -159,7 +159,7 @@ python3 tests/png_decode.py "<配置的工作目录>/dsh_view_selftest.png"   # 
 ## 4. 租约（9 条路径）
 
 ```bash
-B=http://127.0.0.1:9877
+B=http://127.0.0.1:9887
 curl -s -X POST $B/lease  -H "content-type: application/json" -d '{"holder":"A","ttlMs":30000}'   # 1 拿到
 curl -s -o /dev/null -w "%{http_code}\n" -X POST $B/act -H "content-type: application/json" -d '{"code":"print(1)"}'  # 2 → 409
 curl -s -X POST $B/lease  -H "content-type: application/json" -d '{"holder":"B","renewOnly":true}'                  # 3 不抢
@@ -183,9 +183,9 @@ hidden_when 两态、ParamOutOfRange、Cycle 检测、硬错误拒绝编译、�
 ## 5. 三条自检命令（工作区口径）
 
 ```bash
-curl -sS http://127.0.0.1:9877/health    # 后端在不在 + provenance（加载版本自证：verdict/stale）
-curl -sS http://127.0.0.1:9877/doctor    # 通道体检（真跑 bpy 往返；不通才三级判定）+ config.workDir.shared
-curl -sS http://127.0.0.1:9877/who       # 租约 + 通道指标
+curl -sS http://127.0.0.1:9887/health    # 后端在不在 + provenance（加载版本自证：verdict/stale）
+curl -sS http://127.0.0.1:9887/doctor    # 通道体检（真跑 bpy 往返；不通才三级判定）+ config.workDir.shared
+curl -sS http://127.0.0.1:9887/who       # 租约 + 通道指标
 ```
 
 `/health` 的 `provenance.stale=true` 表示**磁盘上的 runtime 已经改了、这个进程还是旧一代** →

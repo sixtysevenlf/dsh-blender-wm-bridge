@@ -60,7 +60,7 @@ if (IS_MAC) {
   // 工作目录：必须是持久目录，不能是 os.tmpdir()（会被系统清理，帧与台账会丢）
   const wd = cfg.CFG.workDirWsl;
   ok('workDir 不是 os.tmpdir()', !wd.startsWith(os.tmpdir()), wd);
-  eq('workDir 是 ~/.dsh-blender-rt', wd, path.join(os.homedir(), '.dsh-blender-rt'));
+  eq('workDir 是 ~/.dsh-blender-wm-rt', wd, path.join(os.homedir(), '.dsh-blender-wm-rt'));
   ok('workDir 来源标记为 mac 分支', cfg.CFG.source.workDir === 'auto:homedir',
     cfg.CFG.source.workDir);
   eq('workDirWin 与 workDirWsl 一致（同机同 OS）', cfg.CFG.workDirWin, cfg.CFG.workDirWsl);

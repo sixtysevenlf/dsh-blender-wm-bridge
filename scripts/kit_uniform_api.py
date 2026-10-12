@@ -1,5 +1,5 @@
 import pathlib, re, sys
-RT = pathlib.Path("/home/sixtyseven67/DSH/dsh-blender-plugin/runtime")
+RT = pathlib.Path(__file__).resolve().parents[1] / "runtime"  # fork: 相对包根，不指回原版
 PAT = re.compile(r"^(\s*)([A-Za-z_][A-Za-z0-9_]*\.dsh_[a-z_]+_api)\s*=\s*\{", re.M)
 
 def uniform(path, dry=False):

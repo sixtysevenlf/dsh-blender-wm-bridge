@@ -120,7 +120,7 @@
       "overlays": false
     }
   },
-  "outdir": "D:\\DSH\\blender\\out\\chair-backrest-example",
+  "outdir": "D:\\DSH\\blender-wm\\out\\chair-backrest-example",
   "evidence": {
     "external_side_px": 4661,
     "external_rear_px": 14114,
@@ -161,7 +161,7 @@
         "err_side": 97,
         "err_rear": 87,
         "err_probe": 642,
-        "shot_probe": "D:\\DSH\\blender\\out\\chair-backrest-example\\best_attach_probe.png"
+        "shot_probe": "D:\\DSH\\blender-wm\\out\\chair-backrest-example\\best_attach_probe.png"
       },
       "candidates_tried": 48,
       "identifiability": {
@@ -195,7 +195,7 @@
           "range": 0
         }
       },
-      "probe_shot": "D:\\DSH\\blender\\out\\chair-backrest-example\\best_attach_probe.png",
+      "probe_shot": "D:\\DSH\\blender-wm\\out\\chair-backrest-example\\best_attach_probe.png",
       "best_probe": {
         "dy": 0.01,
         "tilt": -2.0,
@@ -203,7 +203,7 @@
         "tenon_len": 0.0,
         "measured_tenon_len": 0.0,
         "err_probe_m": 0.06,
-        "probe_shot": "D:\\DSH\\blender\\out\\chair-backrest-example\\probe_cand_attach.png"
+        "probe_shot": "D:\\DSH\\blender-wm\\out\\chair-backrest-example\\probe_cand_attach.png"
       },
       "probe_candidates_tried": 1,
       "verdict_ext": "unresolved",
@@ -247,7 +247,7 @@
         "err_side": 97,
         "err_rear": 87,
         "err_probe": 458,
-        "shot_probe": "D:\\DSH\\blender\\out\\chair-backrest-example\\best_insert_probe.png"
+        "shot_probe": "D:\\DSH\\blender-wm\\out\\chair-backrest-example\\best_insert_probe.png"
       },
       "candidates_tried": 48,
       "identifiability": {
@@ -283,7 +283,7 @@
           "range": 0
         }
       },
-      "probe_shot": "D:\\DSH\\blender\\out\\chair-backrest-example\\best_insert_probe.png",
+      "probe_shot": "D:\\DSH\\blender-wm\\out\\chair-backrest-example\\best_insert_probe.png",
       "best_probe": {
         "dy": 0.01,
         "tilt": -2.0,
@@ -291,7 +291,7 @@
         "tenon_len": 0.065,
         "measured_tenon_len": 0.065,
         "err_probe_m": 0.005,
-        "probe_shot": "D:\\DSH\\blender\\out\\chair-backrest-example\\probe_cand_insert.png"
+        "probe_shot": "D:\\DSH\\blender-wm\\out\\chair-backrest-example\\probe_cand_insert.png"
       },
       "probe_candidates_tried": 5,
       "verdict_ext": "unresolved",

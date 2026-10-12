@@ -4,9 +4,9 @@
 
 | 时间 | 变更 | 旧 | 新 |
 |---|---|---|---|
-| 2026-09-13 | 插件独立成包并改名 | `plugins/dsh-blender-viewport/`（包名 `@dsh-external/dsh-blender-viewport`） | **`dsh-blender-plugin/`**（包名 **`@dsh-external/dsh-blender-plugin`**）；运行时从 `blender/viewport/` 迁到 **`dsh-blender-plugin/runtime/`** |
+| 2026-09-13 | 插件独立成包并改名 | `plugins/dsh-blender-viewport/`（包名 `@dsh-external/dsh-blender-viewport`） | **`dsh-blender-plugin/`**（包名 **`@dsh-external/dsh-blender-wm-bridge`**）；运行时从 `blender/viewport/` 迁到 **`dsh-blender-plugin/runtime/`** |
 | 2026-09-13 | MCP / CLI 通道废弃 | `blender/cli-tools/blender-mcp`、`D:\DSH\blender\venv`、`~/blender-mcp`、`blender/viewport/ui.html`、`tools/win_input_daemon.ps1` | 全部删除；模型侧只剩直连通道的 9 个工具 |
-| 2026-09-13 | 后端进程 | 由旧插件 `plugins/dsh-blender-viewport` 拉起 | 由 `dsh-blender-plugin` 拉起（`runtime/server.mjs --port 9877`），带 15 s 看护 |
+| 2026-09-13 | 后端进程 | 由旧插件 `plugins/dsh-blender-viewport` 拉起 | 由 `dsh-blender-plugin` 拉起（`runtime/server.mjs --port 9887`），带 15 s 看护 |
 | 2026-09-13 (v0.4.0) | 取帧参数：自定义视角 | 旧版"换角度 = 改用户视口 / 建相机对象"（或 CLI 的 `rotate_view_generate_image`） | `blender_rt_see {from, look_at, lens, ortho, ortho_scale, view_size, shading, overlays, view_mode}`；零场景改动（`runtime/view.py`） |
 | 2026-09-13 (v0.4.0) | 长任务通道 | 在 GUI 会话里硬跑 `render.render()`（会撞 CUDA context，且占满主线程） | `blender_rt_headless {script, file, outdir, args, timeout_ms, factory_startup, bootstrap, preload}` 独立进程 |
 | 2026-09-13 (v0.4.0) | 并发保护 | 无（多个会话/agent 直接互相踩） | 写通道租约：`/lease` `/release` `/who` + `blender_viewport {op:"who|lease|release"}`；只读 op 豁免 |

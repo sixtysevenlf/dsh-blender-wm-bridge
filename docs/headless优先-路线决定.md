@@ -2,7 +2,7 @@
 
 | 项 | 值 |
 |---|---|
-| 决定 | **无头批处理（`blender_rt_headless` / `blender_rt_job`）是第一路径；直连 GUI（9876 addon + `rt_do` / `rt_see` / `rt_watch` / `rt_cmd`）是交互式增益** |
+| 决定 | **无头批处理（`blender_rt_headless` / `blender_rt_job`）是第一路径；直连 GUI（9886 addon + `rt_do` / `rt_see` / `rt_watch` / `rt_cmd`）是交互式增益** |
 | 状态 | **已定**（v0.9.3 起生效），本文是这条路线唯一口径 |
 | 依据 | `docs/feedback/插件改进交接-2026-09-24.md` §1 / §5 / §6 / 附录 A（7 名协作者 · ≈120 次工具调用样本） |
 | 影响面 | 工具默认值（D1 等待窗口 / `as_job`）、回执结构、文档与示例、**任务模板**、并行分工 |
@@ -37,7 +37,7 @@
 | 观察 | 数字 |
 |---|---|
 | 协作者全程 headless | **7 / 7** |
-| addon 9876 `Connect` 次数 | **0**（开局 `blender_viewport(op="doctor")` 即 `blender-unreachable`） |
+| addon 9886 `Connect` 次数 | **0**（开局 `blender_viewport(op="doctor")` 即 `blender-unreachable`） |
 | `rt_do` / `rt_see` / `rt_watch` / `rt_cmd` / `rt_commands` / `blender_viewport` 调用次数 | **各 0** |
 | 主力通道 | `blender_rt_headless(script= / script_file=, args=, env=, engine=, timeout_ms=)`；Lead 侧长渲染走 `blender_rt_job` |
 | 单次最长任务 | 6 张 1920×1080 / 256 samples ≈ **20 分钟**（作业层） |
@@ -45,7 +45,7 @@
 
 **三条原因**（协作者原话收敛）：
 
-1. **没有 GUI 会话** —— 9876 从未 Connect，`rt_do/rt_see` 依赖主线程实时通道；
+1. **没有 GUI 会话** —— 9886 从未 Connect，`rt_do/rt_see` 依赖主线程实时通道；
 2. **并行安全** —— 6 路分件同时跑，动 live 场景会互相污染 + 抢主线程；headless 每次是干净进程；
 3. **不可用即绕过** —— 连 `doctor` 都没跑就直接选 headless。
 
@@ -301,7 +301,7 @@ blender_rt_headless(preload="audit", script="""
 import json
 print('HEADLESS ' + json.dumps(K.dsh_audit_api('selftest'), ensure_ascii=False))
 """)
-# 期望：信封 status="finished"，resultJson.ok 为真 —— 全程没有任何 9876 交互
+# 期望：信封 status="finished"，resultJson.ok 为真 —— 全程没有任何 9886 交互
 ```
 
 **② promoted 语义**（D1 的验收，等价于交接文档 §8 第 1 条）：

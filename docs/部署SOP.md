@@ -19,7 +19,7 @@
 | 探测项 | 命令 | 期望 |
 |---|---|---|
 | Blender 进程 | 任务管理器 / `tasklist` 里有 `blender.exe` | 在跑（**GUI 模式**；`-b` 只由 headless 工具用） |
-| addon socket | `blender_viewport(op="status")` | `9876` 通 |
+| addon socket | `blender_viewport(op="status")` | `9886` 通 |
 | 插件后端 | `blender_viewport(op="doctor")` | `kind=ok`；若 `blender-unreachable` 先启动 Blender |
 | 写通道租约 | `blender_viewport(op="who")` | 别的会话持有时写操作会 409（只读 op 豁免，`force=true` 可抢） |
 | 引擎 | `blender_rt_perf(op="status")` | `engine=BLENDER_EEVEE`（v0.8.0 起默认） |
@@ -27,18 +27,18 @@
 ## 2. 安装插件
 
 ```bash
-cd <插件目录>          # 解包后的 dsh-blender-plugin/
+cd <插件目录>          # 解包后的 blender-wm-bridge/
 bash scripts/build.sh  # 链接依赖 + 编译 lib/（需要 bash + node/npm 在 PATH）
 ```
 
-然后按 bundle 方式装进 profile：`node_modules/@dsh-external/dsh-blender-plugin` 建软链 →
+然后按 bundle 方式装进 profile：`node_modules/@dsh-external/dsh-blender-wm-bridge` 建软链 →
 profile 的 `package.json` 里 `dependencies`（`link:`）+ `dsh.profile.bundles` 各加一行 →
 `dsh --profile <profile> --dump-config` 预演 → 重启 DSH。
 
 ## 3. 连接 Blender addon（人工一步）
 
 1. Blender 里启用 **MCP for Blender** addon；
-2. 3D 视口按 `N` → **MCP for Blender** 面板 → **Connect**（socket 默认 `127.0.0.1:9876`）；
+2. 3D 视口按 `N` → **MCP for Blender** 面板 → **Connect**（socket 默认 `127.0.0.1:9886`）；
 3. 回到 DSH 跑 `blender_viewport(op="doctor")` 复核。
 
 ## 4. 自检（部署后必须做）

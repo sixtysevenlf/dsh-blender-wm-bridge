@@ -14,10 +14,10 @@ export const MODELING_CLASS_GUIDE = [
   {
     c: "recon",
     name: "参考图还原（任何有外轮廓的物体）",
-    entry: "blender_rt_plan(op=\"shape_plan\", args={object_class:\"aircraft|vehicle|rotational|furniture|hull|…\"})",
-    chain: "img_rectify → shape_sections → shape_loft（要可改数字就用 shape_fit 出参数 spec）→ crease_lines / inset_lines → shape_regions / shape_panels → qc_render_views(ref_path=…)",
-    forbid: "别自造放样、别手算站表 —— 自造只能出一张连续光滑面（没棱没缝的肥皂）；截面通路必须用 shape_plan 给的 section_path",
-    gate: "比例门（shape_package / vehicle_package）+ 三视图 IoU + 板缝与特征线计数 > 0",
+    entry: "blender_rt_plan(op=\"shape_draft\", args={object_class:\"aircraft|vehicle|rotational|furniture|hull|…\"}) —— **S0 先出制作表格**（是什么 / 量级多大 / 拆成几块 / 主体配件 / 什么形 / 哪凸哪凹）；填好表 op=\"shape_draft_check\" 校验；**拿到参考图之后**才用 op=\"shape_plan\" 拿该类的 section_path",
+    chain: "shape_draft → shape_draft_check（表格机械校验）→（有图后）shape_plan → img_rectify → shape_sections → shape_loft → crease_lines / inset_lines → shape_regions / shape_panels → qc_render_views(ref_path=…)",
+    forbid: "S0 别量 mm、别调 audit_*/print_report 数对象与面数、别把数字定死（尺寸只给 A–F 档，每件必带 evidence 与 to_confirm）；别自造放样、别手算站表 —— 自造只能出一张连续光滑面（没棱没缝的肥皂）；截面通路必须用 shape_plan 给的 section_path",
+    gate: "S0：shape_draft_check ok=true（无 mm 级绝对值、无空缺字段）；S3 起：比例门（shape_package / vehicle_package）+ 三视图 IoU + 板缝与特征线计数 > 0",
   },
   {
     c: "faceted",
@@ -159,9 +159,16 @@ export function renderHandoff() {
   }
   L.push("");
   L.push("## 三条硬规则");
-  L.push("1. 有参考图 → 先 `shape_plan(object_class=…)` 拿 `section_path`，别自造截面、别手算站表；");
+  L.push("1. 参考图还原**先 S0 草稿**：`shape_draft` 出制作表格（只判是什么 / 量级多大 / 几块 / 主体配件 / 什么形 / 哪凸哪凹，**不量 mm、不数 mesh**）→ `shape_draft_check` 机械校验；**拿到图之后**再 `shape_plan(object_class=…)` 拿 `section_path`，别自造截面、别手算站表；");
   L.push("2. 车壳/外壳类**禁止自造放样**（自造只能出一张连续光滑面，没棱没缝）；板缝与棱线用 `vehicle_panels` + `crease_lines`/`inset_lines`；");
   L.push("3. 验收一律**机械门**（`gate_run` 顶层读 verdict 三态；`degraded` ≠ 通过），别用\"看起来像\"代替。");
+  L.push("");
+  L.push("## 几何底座 geo（常驻，任何路径都在，别自己写一套）");
+  L.push("");
+  L.push("KERNEL_BOOTSTRAP 已注入 geo ⇒ 公开名直接可用，**不需要 preload**：");
+  L.push("造 box/cyl/tube/prism/loft/stack ｜ 切 boolean（**带退化守卫**）、hole_cut/slots_cut（批量一次布尔） ｜ 组 mirror/linear_array/join ｜ 收边 bevel/shade_auto（**自动平滑不改拓扑**）｜ 量 mesh_stats/tri_count/bbox_all ｜ 看 quick_views ｜ 登记 own(ob,coll,owner)（COL_/dsh.owner）");
+  L.push("**它只给动词、不给名词**：齿距 / 站表 / 截面函数 / 坐标一律由项目 spec.py 给 —— 底座不含任何形状默认值。");
+  L.push("速查与自检：K.dsh_geo_api 的 help / selftest 两个 op；分层声明见 runtime/geo.py 头注释。");
   L.push("");
   L.push("## 通道纪律");
   L.push("- 长活（>1 min / 长渲染 / 批量几何）走 `blender_rt_job` / `blender_rt_headless`，别同步硬等；");

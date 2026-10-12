@@ -13,7 +13,7 @@
  *
  * 用法：
  *   node tests/lossless_guard.mjs            # 离线用例（不需要 Blender/后端）
- *   node tests/lossless_guard.mjs --live     # 追加真机用例（需要后端 9877 + blender.exe）
+ *   node tests/lossless_guard.mjs --live     # 追加真机用例（需要后端 9887 + blender.exe）
  *   DSH_UTIL_VALUES=<path>                   # 显式指定宿主真校验器
  */
 import { createRequire } from 'node:module'
@@ -159,8 +159,8 @@ section('真实回执（receiptEnvelope / headlessReceipt / promotedReceipt）')
 const cleanResult = {
   status: 'done', ok: true, id: 'run-1789', runId: 'run-1789', ms: 1082, exitCode: 0, timedOut: false,
   resultJson: { ok: true, count: 83, pitch: 0.176, name: '履带节距' },
-  resultTruncated: false, resultPath: 'D:\\DSH\\blender\\tmp\\jobs\\run-1789\\result.json',
-  stdoutTail: 'HEADLESS {"ok":true}' + String.fromCharCode(10), stderrTail: '', outdir: 'D:\\DSH\\blender\\tmp',
+  resultTruncated: false, resultPath: 'D:\\DSH\\blender-wm\\tmp\\jobs\\run-1789\\result.json',
+  stdoutTail: 'HEADLESS {"ok":true}' + String.fromCharCode(10), stderrTail: '', outdir: 'D:\\DSH\\blender-wm\\tmp',
   artifacts: [{ name: 'a.blend', bytes: 1024, fresh: true }, 'b.png'],
   logs: { stdout: 'D:\\x\\stdout.log', stderr: 'D:\\x\\stderr.log' },
   pathWarnings: [{ code: 'posix-path-to-win-api', evidence: '/home/x', hint: '用 K.win_path' }],
@@ -213,7 +213,7 @@ if (!LIVE) {
     get: () => undefined,
     logger: { info() {}, warn() {}, error() {} },
   }
-  let cfg = { port: 9877, autoStart: false }
+  let cfg = { port: 9887, autoStart: false }
   try {
     const c = await import(pathToFileURL(path.join(PKG, 'runtime', 'config.mjs')).href)
     if (c.CFG && c.CFG.httpPort) cfg = { port: c.CFG.httpPort, autoStart: false }

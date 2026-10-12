@@ -3,11 +3,11 @@
 
 跑法（推荐，父任务给的命令）：
     blender_rt_headless(preload="txn", engine="none", outdir="D:\\\\DSH\\\\blender\\\\tmp\\\\txn_v090",
-        script="_p=K.win_path('/home/sixtyseven67/DSH/dsh-blender-plugin/tests/txn_selftest.py');"
+        script="_p=K.win_path('/home/sixtyseven67/DSH/测试/测试/blender-wm-bridge/tests/txn_selftest.py');"
                "exec(compile(open(_p,encoding='utf-8').read(),'x','exec'),globals())")
 
-为什么不再走老版本的 HTTP(/act, 127.0.0.1:9877) 路径：那条路打的是**用户的 GUI 场景**（会在里面建/删
-DSH_TXN_SELFTEST 立方体），而且它的 prune(keep=1) 会把用户 D:\\DSH\\blender\\tmp\\snapshots 里已有的
+为什么不再走老版本的 HTTP(/act, 127.0.0.1:9887) 路径：那条路打的是**用户的 GUI 场景**（会在里面建/删
+DSH_TXN_SELFTEST 立方体），而且它的 prune(keep=1) 会把用户 D:\\DSH\\blender-wm\\tmp\\snapshots 里已有的
 快照（pre_exo_build / pre_p2_baseline / pre_p3_parts）删掉。本文件改为**进程内直调 K.dsh_txn_api**
 + 自造合成对象（对象名/集合/材质全带 DSH_TS_ 前缀，结束自清），断言与老版本逐条对应（§老断言）。
 

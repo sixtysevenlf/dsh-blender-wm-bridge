@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""qc 自检（需要插件后端在跑：GUI Blender + addon + 127.0.0.1:9877）。
+"""qc 自检（需要插件后端在跑：GUI Blender + addon + 127.0.0.1:9887）。
 
 用法：python3 tests/qc_selftest.py [--ref 参考图 --box x0,y0,x1,y1 --render 渲染图]
 断言：自比 IoU=1.0、平移 12px 仍=1.0、放大 1.15>0.97、扰动下搜索对齐显著优于直接比、
@@ -7,7 +7,7 @@
 """
 import json, os, sys, urllib.request
 
-API = os.environ.get("DSH_BLENDER_API", "http://127.0.0.1:9877")
+API = os.environ.get("DSH_BLENDER_WM_API", "http://127.0.0.1:9887")
 FAILS = []
 
 

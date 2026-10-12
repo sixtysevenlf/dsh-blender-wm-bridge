@@ -34,7 +34,7 @@ function ok(name, cond, detail) {
   else { fail++; failures.push(name); console.log('  ✗ ' + name + (detail ? (' — ' + String(detail).slice(0, 240)) : '')) }
 }
 
-/** 在子进程里以指定 DSH_BLENDER_WORKDIR 调 writeHeadlessScript，回它的 staging */
+/** 在子进程里以指定 DSH_BLENDER_WM_WORKDIR 调 writeHeadlessScript，回它的 staging */
 function stageWith(workdir) {
   const code = [
     "import { writeHeadlessScript } from './runtime/engine.mjs';",
@@ -44,7 +44,7 @@ function stageWith(workdir) {
   ].join('\n')
   const r = spawnSync(process.execPath, ['--input-type=module', '-e', code], {
     cwd: PKG, encoding: 'utf8',
-    env: Object.assign({}, process.env, { DSH_BLENDER_WORKDIR: workdir }),
+    env: Object.assign({}, process.env, { DSH_BLENDER_WM_WORKDIR: workdir }),
   })
   const line = String(r.stdout || '').trim().split('\n').filter(Boolean).pop() || ''
   try { return JSON.parse(line) } catch (e) { return { error: String((e && e.message) || e), stdout: String(r.stdout).slice(-400), stderr: String(r.stderr).slice(-400) } }

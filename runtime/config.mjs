@@ -5,10 +5,10 @@
  *   本机版把 workDir / blender.exe / 端口写死在 engine.mjs；分享版全部走这里。
  *
  * 优先顺序（高 → 低）：
- *   1) 环境变量     DSH_BLENDER_*（见 docs/配置参考.md）
- *   2) 配置文件     $DSH_BLENDER_CONFIG → <包根>/dsh-blender.config.json → ~/.dsh/dsh-blender.config.json
+ *   1) 环境变量     DSH_BLENDER_WM_*（见 docs/配置参考.md）
+ *   2) 配置文件     $DSH_BLENDER_WM_CONFIG → <包根>/dsh-blender-wm.config.json → ~/.dsh/dsh-blender-wm.config.json
  *   3) 自动探测     工作目录（Windows 用户临时区）/ Blender 安装路径 / PATH
- *   4) 内置默认     addon 127.0.0.1:9876 · 后端 127.0.0.1:9877 · 租约 TTL 600000 ms
+ *   4) 内置默认     addon 127.0.0.1:9886 · 后端 127.0.0.1:9887 · 租约 TTL 600000 ms
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -59,9 +59,9 @@ export function linuxDistroName() {
 }
 
 export const CONFIG_FILES = [
-  process.env.DSH_BLENDER_CONFIG,
-  path.join(PKG_ROOT, 'dsh-blender.config.json'),
-  path.join(os.homedir(), '.dsh', 'dsh-blender.config.json'),
+  process.env.DSH_BLENDER_WM_CONFIG,
+  path.join(PKG_ROOT, 'dsh-blender-wm.config.json'),
+  path.join(os.homedir(), '.dsh', 'dsh-blender-wm.config.json'),
 ].filter(Boolean);
 
 function readJson(p) {
@@ -200,22 +200,22 @@ function probeWritable(dir) {
 
 /** 原始候选（不探写）；回退逻辑在 resolveWorkDir() 里 */
 function resolveWorkDirRaw() {
-  const given = process.env.DSH_BLENDER_WORKDIR || FILE.cfg.workDir;
+  const given = process.env.DSH_BLENDER_WM_WORKDIR || FILE.cfg.workDir;
   if (given) {
     const win = /^[A-Za-z]:[\\/]/.test(given) ? given : wslToWin(given);
     return { win: win, wsl: winToWsl(given), from: 'config' };
   }
   if (IS_MAC) {
     // macOS：用户级持久目录（不用 os.tmpdir()，它会被系统清理，帧/台账会丢）
-    const d = path.join(os.homedir(), '.dsh-blender-rt');
+    const d = path.join(os.homedir(), '.dsh-blender-wm-rt');
     return { win: d, wsl: d, from: 'auto:homedir' };
   }
   const lad = winLocalAppData();
   if (lad) {
-    const win = path.win32.join(lad, 'dsh-blender-rt');
+    const win = path.win32.join(lad, 'dsh-blender-wm-rt');
     return { win: win, wsl: winToWsl(win), from: 'auto:localappdata' };
   }
-  const t = path.join(os.tmpdir(), 'dsh-blender-rt');
+  const t = path.join(os.tmpdir(), 'dsh-blender-wm-rt');
   return { win: t, wsl: t, from: 'auto:tmpdir' };
 }
 
@@ -231,7 +231,7 @@ function resolveWorkDir() {
   const pkgTmp = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'tmp');
   const tries = [
     { dir: pkgTmp, from: 'fallback:pkg-tmp' },
-    { dir: path.join(os.tmpdir(), 'dsh-blender-rt'), from: 'fallback:tmpdir' },
+    { dir: path.join(os.tmpdir(), 'dsh-blender-wm-rt'), from: 'fallback:tmpdir' },
   ];
   const errs = [cand.wsl + '（' + cand.from + '）：' + pr.why];
   for (const t of tries) {
@@ -252,7 +252,7 @@ function listDirSafe(p) {
 
 /** 找 Blender：配置 → 常见安装位置 → PATH（Windows / WSL / macOS 都能用） */
 function detectBlenderExe() {
-  const given = process.env.DSH_BLENDER_EXE || FILE.cfg.blenderExe;
+  const given = process.env.DSH_BLENDER_WM_EXE || FILE.cfg.blenderExe;
   if (given) return { exe: given, from: 'config' };
   const cands = [];
   if (IS_WIN) {
@@ -313,24 +313,24 @@ function num(v, d) { const n = Number(v); return Number.isFinite(n) && n > 0 ? n
 /** 最终配置（一次性算好，模块级常量） */
 export const CFG = {
   // 通道
-  addonHost: process.env.DSH_BLENDER_ADDON_HOST || FILE.cfg.addonHost || '127.0.0.1',
-  addonPort: num(process.env.DSH_BLENDER_ADDON_PORT || FILE.cfg.addonPort, 9876),
+  addonHost: process.env.DSH_BLENDER_WM_ADDON_HOST || FILE.cfg.addonHost || '127.0.0.1',
+  addonPort: num(process.env.DSH_BLENDER_WM_ADDON_PORT || FILE.cfg.addonPort, 9886),
   // Blender 侧 addon 的线上协议：auto（默认，探测一次）/ ahujasid / category-action。
   // 见 runtime/addon-protocol.mjs；探测结果会出现在 /doctor 与 /who 里。
   addonProtocol: (function () {
-    const v = String(process.env.DSH_BLENDER_ADDON_PROTOCOL || FILE.cfg.addonProtocol || 'auto').trim().toLowerCase();
+    const v = String(process.env.DSH_BLENDER_WM_ADDON_PROTOCOL || FILE.cfg.addonProtocol || 'auto').trim().toLowerCase();
     return v === 'ahujasid' || v === 'category-action' ? v : 'auto';
   })(),
-  httpPort: num(process.env.DSH_BLENDER_HTTP_PORT || FILE.cfg.httpPort, 9877),
+  httpPort: num(process.env.DSH_BLENDER_WM_HTTP_PORT || FILE.cfg.httpPort, 9887),
   /**
-   * Windows 侧启动代理（D:/DSH/blender/launch-agent.mjs，默认 127.0.0.1:9878）。
+   * Windows 侧启动代理（D:/DSH/blender-wm/launch-agent.mjs，默认 127.0.0.1:9888）。
    * WSL 走它拉起 GUI Blender ⇒ 本次启动 0 次互操作调用，回避 microsoft/WSL#41173
    * 的中继空转泄漏（Interop 线程吃满一个核心且无法释放）。
    * 代理不在线时自动回退到旧的互操作 spawn；设为 "off" 可强制回退。
    */
-  launchAgentUrl: String(process.env.DSH_BLENDER_LAUNCH_AGENT_URL || FILE.cfg.launchAgentUrl || "http://127.0.0.1:9878").replace(/\/+$/, ""),
-  holder: process.env.DSH_BLENDER_HOLDER || FILE.cfg.holder || ('plugin-pid-' + String(process.pid)),
-  leaseTtlMs: num(process.env.DSH_BLENDER_LEASE_TTL_MS || FILE.cfg.leaseTtlMs, 600000),
+  launchAgentUrl: String(process.env.DSH_BLENDER_WM_LAUNCH_AGENT_URL || FILE.cfg.launchAgentUrl || "http://127.0.0.1:9888").replace(/\/+$/, ""),
+  holder: process.env.DSH_BLENDER_WM_HOLDER || FILE.cfg.holder || ('plugin-pid-' + String(process.pid)),
+  leaseTtlMs: num(process.env.DSH_BLENDER_WM_LEASE_TTL_MS || FILE.cfg.leaseTtlMs, 600000),
   // 目录（成对：Windows 侧给 Blender 写，宿主侧给 Node 读）
   workDirWin: WORK.win,
   workDirWsl: WORK.wsl,
@@ -340,10 +340,10 @@ export const CFG = {
   // 无头进程
   blenderExe: BLENDER.exe,
   /** 用户 Blender 配置目录（GPU 偏好所在）：无头进程默认读不到 → 要继承就设它（配合 factory_startup=false） */
-  blenderUserConfig: process.env.DSH_BLENDER_USER_CONFIG || process.env.BLENDER_USER_CONFIG || FILE.cfg.blenderUserConfig || null,
-  blenderUserScripts: process.env.DSH_BLENDER_USER_SCRIPTS || process.env.BLENDER_USER_SCRIPTS || FILE.cfg.blenderUserScripts || null,
-  /** 热无头 worker 的本地端口（与 addon 9876 / 后端 9877 区分开） */
-  workerPort: num(process.env.DSH_BLENDER_WORKER_PORT || FILE.cfg.workerPort, 9879),
+  blenderUserConfig: process.env.DSH_BLENDER_WM_USER_CONFIG || process.env.BLENDER_USER_CONFIG || FILE.cfg.blenderUserConfig || null,
+  blenderUserScripts: process.env.DSH_BLENDER_WM_USER_SCRIPTS || process.env.BLENDER_USER_SCRIPTS || FILE.cfg.blenderUserScripts || null,
+  /** 热无头 worker 的本地端口（与 addon 9886 / 后端 9887 区分开） */
+  workerPort: num(process.env.DSH_BLENDER_WM_WORKER_PORT || FILE.cfg.workerPort, 9879),
   // 溯源（doctor/日志/教程排查用）
   source: { configFile: FILE.from, workDir: WORK.from, blenderExe: BLENDER.from },
 };
@@ -389,11 +389,11 @@ export function describeConfig(over) {
     holder: CFG.holder,
     leaseTtlMs: CFG.leaseTtlMs,
     env: {
-      DSH_BLENDER_WORKDIR: process.env.DSH_BLENDER_WORKDIR || null,
-      DSH_BLENDER_EXE: process.env.DSH_BLENDER_EXE || null,
-      DSH_BLENDER_HTTP_PORT: process.env.DSH_BLENDER_HTTP_PORT || null,
-      DSH_BLENDER_ADDON_PROTOCOL: process.env.DSH_BLENDER_ADDON_PROTOCOL || null,
-      DSH_BLENDER_CONFIG: process.env.DSH_BLENDER_CONFIG || null,
+      DSH_BLENDER_WM_WORKDIR: process.env.DSH_BLENDER_WM_WORKDIR || null,
+      DSH_BLENDER_WM_EXE: process.env.DSH_BLENDER_WM_EXE || null,
+      DSH_BLENDER_WM_HTTP_PORT: process.env.DSH_BLENDER_WM_HTTP_PORT || null,
+      DSH_BLENDER_WM_ADDON_PROTOCOL: process.env.DSH_BLENDER_WM_ADDON_PROTOCOL || null,
+      DSH_BLENDER_WM_CONFIG: process.env.DSH_BLENDER_WM_CONFIG || null,
     },
   };
 }

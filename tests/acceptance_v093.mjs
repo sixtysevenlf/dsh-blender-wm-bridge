@@ -2,7 +2,7 @@
 /**
  * v0.9.3 验收测试 —— 逐条对应《插件改进交接-2026-09-24》§8 的建议 case。
  *
- *   node tests/acceptance_v093.mjs                 # 全部（需要后端 9877 + blender.exe）
+ *   node tests/acceptance_v093.mjs                 # 全部（需要后端 9887 + blender.exe）
  *   node tests/acceptance_v093.mjs --only=D1,D3    # 只跑指定用例
  *   node tests/acceptance_v093.mjs --list          # 列出用例
  *
@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const PKG = path.resolve(HERE, '..')
-const PORT = Number(process.env.DSH_BLENDER_HTTP_PORT || 9877)
+const PORT = Number(process.env.DSH_BLENDER_WM_HTTP_PORT || 9887)
 const TMP = path.join(PKG, 'tmp', 'acceptance')
 const NL = String.fromCharCode(10)
 
@@ -233,7 +233,7 @@ test('D6', 'job 支持 script_file+args+env；op=wait 一次拿结果；kill 未
 
 test('D6-stale', '后端重启后的 stale running 会被对账收敛（不再谎报 running）', async () => {
   // 为什么要起子进程：台账真源 = <workDir>/jobs/index.jsonl，而 workDir 由 config.mjs 在**模块加载时**
-  // 从 DSH_BLENDER_WORKDIR 读定。这里用一个可写的临时 workDir 起子进程，测的就是真引擎代码路径
+  // 从 DSH_BLENDER_WM_WORKDIR 读定。这里用一个可写的临时 workDir 起子进程，测的就是真引擎代码路径
   // （顺带绕开「默认 workDir 落在只读挂载上」这类环境差异，见 F5-doc 之外的环境说明）。
   const workdir = path.join(TMP, 'acc-workdir')
   fs.mkdirSync(path.join(workdir, 'jobs'), { recursive: true })
@@ -251,7 +251,7 @@ test('D6-stale', '后端重启后的 stale running 会被对账收敛（不再�
     'process.exit(0)',
   ].join(NL), 'utf8')
   const out = execFileSync(process.execPath, [probe, fakeId], {
-    env: Object.assign({}, process.env, { DSH_BLENDER_WORKDIR: workdir }), encoding: 'utf8', timeout: 30000,
+    env: Object.assign({}, process.env, { DSH_BLENDER_WM_WORKDIR: workdir }), encoding: 'utf8', timeout: 30000,
   })
   const r = JSON.parse(String(out).trim().split(NL).pop())
   ok('台账里 running + 死 pid → 收敛为 stale', r.status === 'stale', JSON.stringify(r).slice(0, 300))
@@ -318,7 +318,7 @@ if (NO_BLENDER) console.log('（--no-blender 仍会跑全部用例：本套用�
 
 const started = Date.now()
 const up = await waitBackend(40000)
-if (!up) { console.log('后端 ' + PORT + ' 起不来 —— 先确认 Blender 与 dsh-blender.config.json'); process.exit(2) }
+if (!up) { console.log('后端 ' + PORT + ' 起不来 —— 先确认 Blender 与 dsh-blender-wm.config.json'); process.exit(2) }
 // 写路由（/headless /job）受租约门控：别的会话持有租约时会被 409 挡住（不是 bug）。
 // 验收测试自己抢一份租约，跑完释放 —— 否则结果取决于"谁先占了写通道"。
 try {

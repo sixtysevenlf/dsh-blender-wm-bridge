@@ -21,7 +21,7 @@ declare function losslessSanitize(root: any): {
     fixes: string[];
 };
 import type zt from '@deepseek-ai/schemastery';
-export declare const name = "@dsh-external/dsh-blender-plugin";
+export declare const name = "@dsh-external/dsh-blender-wm-bridge";
 export declare const inject: string[];
 export interface Config {
     port: number;

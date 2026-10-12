@@ -23,7 +23,7 @@
 ## 2. 更新后验收（三步，约 30 秒）
 
 ```bash
-cd ~/DSH/dsh-blender-plugin
+cd ~/DSH/测试/测试/blender-wm-bridge
 node tests/protocol_selftest.mjs        # ① addon 协议层：28 项，不需要 Blender / DSH
 npm run test:dsh-api                    # ② 工具契约：15 工具 + 15 timeoutMs + 0 报错 + 前缀 [v0.9.2]
 npm run test:dsh-api -- --version 0.1.7-alpha.2   # ③ 升级前预演：把待升级版本的 dsh-tools 拉下来先测
@@ -34,7 +34,7 @@ npm run test:dsh-api -- --version 0.1.7-alpha.2   # ③ 升级前预演：把待
 ```
 诊断：…
 宿主 API：dsh-tools@0.1.6-alpha.1 @ /usr/lib/node_modules/.../dsh-tools/lib/index.js   ← v0.9.2 自证
-插件：v0.9.2 @ /home/sixtyseven67/DSH/dsh-blender-plugin/lib/index.js
+插件：v0.9.2 @ /home/sixtyseven67/DSH/测试/测试/blender-wm-bridge/lib/index.js
 ```
 
 `宿主 API` 这行是**升级后第一时间要看的**：它证明"插件挂上了哪一份宿主 API"。
@@ -70,7 +70,7 @@ dsh --profile web --dump-config | grep -A3 dsh-blender-plugin
 
 | 插件 | 迁移前 | 迁移后 |
 |---|---|---|
-| `@dsh-external/dsh-blender-plugin` | injector 注入（`ctx.loader.create` 挂 root） | profile bundle（本包 `cordis.patch.yml`） |
+| `@dsh-external/dsh-blender-wm-bridge` | injector 注入（`ctx.loader.create` 挂 root） | profile bundle（本包 `cordis.patch.yml`） |
 | `@dsh-external/dsh-coc-dice` | 同上 | profile bundle（该包 `cordis.patch.yml`）—— 仍是**宿主级**，掷骰工具对所有会话可见 |
 | `@dsh-external/dsh-session-list-cache` | 同上 | profile bundle（该包 `cordis.patch.yml`） |
 

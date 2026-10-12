@@ -69,7 +69,7 @@ console.log('== 死会话租约回收自检 ==')
 console.log('隔离后端：http://127.0.0.1:' + String(PORT) + ' · 工作目录 ' + TMP
   + '（Windows 侧共享判定 shared=' + String(TMP_SHARED.shared) + '，' + String(TMP_SHARED.why) + '）')
 const backend = spawn(process.execPath, [path.join(PKG, 'runtime', 'server.mjs'), '--port', String(PORT)], {
-  env: Object.assign({}, process.env, { DSH_BLENDER_WORKDIR: TMP, DSH_BLENDER_HTTP_PORT: String(PORT) }),
+  env: Object.assign({}, process.env, { DSH_BLENDER_WM_WORKDIR: TMP, DSH_BLENDER_WM_HTTP_PORT: String(PORT) }),
   stdio: ['ignore', 'pipe', 'pipe'],
 })
 let log = ''

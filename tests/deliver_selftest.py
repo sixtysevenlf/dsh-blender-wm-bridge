@@ -3,7 +3,7 @@
 
 跑法：
     blender_rt_headless(preload="deliver", engine="none", outdir="D:\\\\DSH\\\\blender\\\\tmp\\\\txn_v090",
-        script="_p=K.win_path('/home/sixtyseven67/DSH/dsh-blender-plugin/tests/deliver_selftest.py');"
+        script="_p=K.win_path('/home/sixtyseven67/DSH/测试/测试/blender-wm-bridge/tests/deliver_selftest.py');"
                "exec(compile(open(_p,encoding='utf-8').read(),'x','exec'),globals())")
     # 或 blender -b --factory-startup --python tests/deliver_selftest.py -- <outdir>
 

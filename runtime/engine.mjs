@@ -5,7 +5,7 @@ export { launchBlender };
 /**
  * Blender 实时交互引擎 —— 直连 addon socket（不经 MCP/python）。
  *
- *  - 会话：TCP 127.0.0.1:9876，JSON {type, params} → {status, result}，按序匹配 → 队列串行化
+ *  - 会话：TCP 127.0.0.1:9886，JSON {type, params} → {status, result}，按序匹配 → 队列串行化
  *  - 取帧：addon 离屏渲染（GPUOffScreen）到**固定** Windows 路径（覆盖写，WSL 侧只读读回，无残留）
  *  - 执行：execute_code + 持久内核 K（sys.modules 承载状态，实现 REPL 语义）
  *  - 命令：addon 命令表全部可调（见 COMMAND_CATALOG / commands()），无 MCP 那层的改名与 schema 过滤
@@ -83,7 +83,7 @@ function runtimeFingerprint() {
 }
 
 // 分享版：端口 / 工作目录 / blender.exe 全部来自 config.mjs（env → 配置文件 → 自动探测）。
-// 本机版曾把这些写死在这里；现在换机器只需改 dsh-blender.config.json 或设 DSH_BLENDER_* 环境变量。
+// 本机版曾把这些写死在这里；现在换机器只需改 dsh-blender-wm.config.json 或设 DSH_BLENDER_WM_* 环境变量。
 export { winToWsl, wslToWin, describeConfig, COMMAND_CATALOG, PKG_ROOT, blenderJoin, PIPELINE_PATH };
 
 export const KERNEL_BOOTSTRAP = [
@@ -117,6 +117,12 @@ export const KERNEL_BOOTSTRAP = [
   '# 传输量不变（本地 socket 可忽略），换来零风险：任何路径都保证 kit 在。',
   'if getattr(K, "dsh_kit", None) is None:',
   ...KIT_SRC.split('\n').map((l) => (l ? '    ' + l : l)),
+  // ---- 几何底座（geo · 机制层：布尔/开孔/开槽/镜像/阵列/拉伸/放样/倒角/自动平滑）----
+  // 与 kit 同等：**任何注入路径都保证在**。不做成"可选 preload"的理由是实测 ——
+  // 最大的失效模式不是报错，是"不知道有这个模块"（两个会话各手写一套 kit 的直接原因）。
+  // 代价：每次 execute_code 传输量 +GEO_SRC（本地 socket，可忽略）；exec 只在首轮（持久内核）。
+  'if getattr(K, "dsh_geo_api", None) is None:',
+  ...GEO_SRC.split('\n').map((l) => (l ? '    ' + l : l)),
 ].join('\n');
 
 /** addon 命令目录：name → { d: 说明, gate: 需要的 scene 开关（null=常驻） } */
@@ -134,7 +140,7 @@ export const KERNEL_BOOTSTRAP = [
  */
 // S3：目录（数据 + 目录逻辑）外移到 catalog.mjs；此处导入并**重导出公开面**，对外面逐字节不变
 // S3-b：路径与常量外移到 paths.mjs；具名导入 + 重导出，对外面不变
-import { ADDRESS, WIN_TMP, WSL_TMP, LIVE_PNG_WIN, LIVE_PNG_WSL, KIT_PATH, RUNNER_PATH, PERF_PATH, VIEW_PATH, CONTRACT_PATH, PLANNER_PATH, WORKER_PATH, TXN_PATH, QC_PATH, QC_RENDER_PATH, PRESET_PATH, AUDIT_PATH, MONTAGE_PATH, MOTION_PATH, DELIVER_PATH, GENERATOR_PATH, SCULPT_PATH, FIX_PATH, UV_PATH, PRINT_PATH, SWEEP_PATH, MATERIAL_PATH, RENDER_GUARD_PATH, GATE_PATH, IMG_PATH, CALIB_PATH, FACE_PATH, HUMAN_PATH, CLEARANCE_PATH, VEHICLE_PATH, SHAPE_PATH, USER_CONFIG_WIN, USER_SCRIPTS_WIN, GPU_PRELUDE, VIEW_PNG_WIN, VIEW_PNG_WSL, BLENDER_EXE, PATH_HELPERS, ACT_WRAPPER, KIT_SRC, KIT_HASH, blenderJoin, PIPELINE_PATH } from './paths.mjs';
+import { ADDRESS, WIN_TMP, WSL_TMP, LIVE_PNG_WIN, LIVE_PNG_WSL, KIT_PATH, RUNNER_PATH, PERF_PATH, VIEW_PATH, CONTRACT_PATH, PLANNER_PATH, WORKER_PATH, TXN_PATH, QC_PATH, QC_RENDER_PATH, PRESET_PATH, AUDIT_PATH, MONTAGE_PATH, MOTION_PATH, DELIVER_PATH, GENERATOR_PATH, SCULPT_PATH, FIX_PATH, UV_PATH, PRINT_PATH, SWEEP_PATH, MATERIAL_PATH, RENDER_GUARD_PATH, GATE_PATH, IMG_PATH, CALIB_PATH, FACE_PATH, HUMAN_PATH, CLEARANCE_PATH, VEHICLE_PATH, SHAPE_PATH, USER_CONFIG_WIN, USER_SCRIPTS_WIN, GPU_PRELUDE, VIEW_PNG_WIN, VIEW_PNG_WSL, BLENDER_EXE, PATH_HELPERS, ACT_WRAPPER, KIT_SRC, KIT_HASH, GEO_SRC, blenderJoin, PIPELINE_PATH } from './paths.mjs';
 // S8：无头脚本暂存移到 staging.mjs；具名导入 + 重导出，导出面不变
 import { writeHeadlessScript } from './staging.mjs';
 // workdirStagingWarning 也在这个模块里（搬移时一并带过去了）；readJsonSafe 仍是 engine 本地（不进导出面）
@@ -550,7 +556,7 @@ export async function diagnose() {
   const tcp = await tcpProbe();
   if (!tcp) {
     return { kind: "blender-unreachable", tcp: false, ping: null,
-      summary: "9876 端口没人监听 —— Blender 没在跑，或 addon 没连上",
+      summary: "9886 端口没人监听 —— Blender 没在跑，或 addon 没连上",
       fix: "**agent 走这条路：blender_viewport(op=\"launch\") 一键拉起 GUI Blender 并自动 Connect addon**（v0.9.4 起，不必有人点面板）；"
         + "人工流程是：启动 Blender → 3D 视图按 N → " + panel + "（服务监听 127.0.0.1:" + String(CFG.addonPort) + "）",
       hint: "TCP " + CFG.addonHost + ":" + String(CFG.addonPort) + " 不通：Blender 没在运行，或 addon 面板没连上。"
@@ -579,7 +585,7 @@ export async function diagnose() {
         ? "端口通、addon 也活着，但按 " + (proto && proto.proto.id) + " 协议发 ping 没有回包 —— 协议不匹配"
         : "端口通但 ping 无响应 —— addon 客户端线程卡在上一条长命令上",
       fix: mismatch
-        ? "把 dsh-blender.config.json 的 addonProtocol 改成 \"" + detected.id + "\"（或设 \"auto\"）后重启后端：blender_viewport op=restart"
+        ? "把 dsh-blender-wm.config.json 的 addonProtocol 改成 \"" + detected.id + "\"（或设 \"auto\"）后重启后端：blender_viewport op=restart"
         : "不要连发；等它结束，仍无响应再重启 Blender",
       hint: mismatch
         ? "探测到的 addon 实际讲 " + detected.id + " 协议，与当前配置不一致 → 改 addonProtocol 或设 auto"
@@ -727,7 +733,7 @@ export function createEngine(opts = {}) {
   /** 把 Blender 侧 python 模块注入运行中的 Blender（模块自己把 API 挂到 K 上） */
   const MODULE_ATTR = { RUNNER_READY: 'dsh_loop_api', PERF_READY: 'dsh_perf_api', VIEW_READY: 'dsh_view_api',
                         CONTRACT_READY: 'dsh_contract_api', PLAN_READY: 'dsh_plan_api',
-                        TXN_READY: 'dsh_txn_api', QC_READY: 'dsh_qc_api',
+                        TXN_READY: 'dsh_txn_api', QC_READY: 'dsh_qc_api', GEO_READY: 'dsh_geo_api',
                         QC_RENDER_READY: 'dsh_qc_render_api',
                         PRESET_READY: 'dsh_preset_api',
                         AUDIT_READY: 'dsh_audit_api', MONTAGE_READY: 'dsh_montage_api',
@@ -1717,7 +1723,7 @@ export function createEngine(opts = {}) {
     } catch (e) {
       // 静默失败是这一版要消灭的东西：记下来，让 /status 与 op=list 能说出来
       ledgerWarn = { path: LEDGER, error: String((e && e.code) || (e && e.message) || e).slice(0, 200),
-        hint: 'workDir 不可写 → 磁盘台账/日志落不下去（内存台账与产物不受影响）。改 dsh-blender.config.json 的 workDir 或 DSH_BLENDER_WORKDIR 到一个两端都可写的目录（WSL 路径也可，如 /home/<user>/dsh-blender-work）。' };
+        hint: 'workDir 不可写 → 磁盘台账/日志落不下去（内存台账与产物不受影响）。改 dsh-blender-wm.config.json 的 workDir 或 DSH_BLENDER_WM_WORKDIR 到一个两端都可写的目录（WSL 路径也可，如 /home/<user>/dsh-blender-work）。' };
     }
   }
   function ledgerState() {
@@ -1894,7 +1900,7 @@ export function createEngine(opts = {}) {
   // 名字缺省 `default`（老调用逐字节不变）；额外实例按 name 各占一个端口（配置端口起顺延）。
   // ⚠ 复用 = 主动放弃"进程隔离"：同一 worker 里的作业共享场景与 K，脚本要自己保证无副作用残留；
   //    需要干净场景时用 `op=restart name=…`，或继续用 blender_rt_headless（每次新进程）。
-  const WORKER_PORT = Number(process.env.DSH_BLENDER_WORKER_PORT) || CFG.workerPort || 9879;
+  const WORKER_PORT = Number(process.env.DSH_BLENDER_WM_WORKER_PORT) || CFG.workerPort || 9879;
   const WORKERS = new Map();
   function workerKey(n) {
     const k = String(n === undefined || n === null || n === '' ? 'default' : n).trim().toLowerCase()
@@ -2546,9 +2552,9 @@ export function createEngine(opts = {}) {
         const msg = '起不来 Blender 进程（' + BLENDER_EXE + '）：' + String((res.spawnErr && res.spawnErr.message) || res.spawnErr);
         const e = new Error(msg); e.code = 'blender-exe-missing';
         e.hint = '自动探测没找到 blender 可执行文件。三种配置方式（任选一种）：'
-          + '① 环境变量 DSH_BLENDER_EXE=' + (IS_WIN ? 'D:\\...\\blender.exe' : (IS_MAC ? '/Applications/Blender.app/Contents/MacOS/Blender' : '/mnt/d/.../blender.exe'))
-          + ' ② 包根写 dsh-blender.config.json: {"blenderExe":"..."}'
-          + ' ③ ~/.dsh/dsh-blender.config.json。当前探测结果见 blender_viewport op=doctor 的 config 字段。';
+          + '① 环境变量 DSH_BLENDER_WM_EXE=' + (IS_WIN ? 'D:\\...\\blender.exe' : (IS_MAC ? '/Applications/Blender.app/Contents/MacOS/Blender' : '/mnt/d/.../blender.exe'))
+          + ' ② 包根写 dsh-blender-wm.config.json: {"blenderExe":"..."}'
+          + ' ③ ~/.dsh/dsh-blender-wm.config.json。当前探测结果见 blender_viewport op=doctor 的 config 字段。';
         throw e;
       }
       const stdout = String(res.so || '');
@@ -2649,7 +2655,7 @@ export function createEngine(opts = {}) {
         blender_error: 'Blender 进程退出码非 0（崩溃/参数错）—— 看 stderr 尾巴与日志路径',
         timeout: '超时被 SIGKILL：脚本没跑完。改小批量、或 asJob=true 转作业层（不占客户端连接）',
         gpu_required_missing: '要求 GPU 但设备不可用（gpu="true"/engine="cycles" 时）—— 见 gpu 段回执',
-        blender_exe_missing: '起不来 Blender 进程：先配 blenderExe / DSH_BLENDER_EXE',
+        blender_exe_missing: '起不来 Blender 进程：先配 blenderExe / DSH_BLENDER_WM_EXE',
       }[failureClass] || null;
       // ---- v0.9.3（F1/F2）：shots 行 + 取景自诊断（主体占画面 <5% → warning）
       let shotsSummary = null;

@@ -37,7 +37,7 @@ function workdirStagingWarning(staging) {
   if (!staging || !staging.substituted) return null;
   return { code: 'WORKDIR_NOT_SHARED', value: staging.requestedWhy, evidence: staging.note,
            hint: 'workDir（' + staging.requested + '）在 Windows 侧不保证可见 → 无头脚本会落在 blender.exe 打不开的位置。'
-                 + '把 DSH_BLENDER_WORKDIR / 配置里的 workDir 指到 Windows 可见目录（D:\\… 或发行版根文件系统 ~/.dsh/…）' };
+                 + '把 DSH_BLENDER_WM_WORKDIR / 配置里的 workDir 指到 Windows 可见目录（D:\\… 或发行版根文件系统 ~/.dsh/…）' };
 }
 
 /** 读 JSON，坏文件返回 null（engine 与 launch 共用） */

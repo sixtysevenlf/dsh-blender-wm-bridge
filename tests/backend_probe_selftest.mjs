@@ -48,8 +48,8 @@ try {
 ok("runtime/backend_probe.mjs 可被 lib 侧解析", libOk, libErr);
 
 // ⑥ 真后端探活（有后端时应为 true；没有则跳过，不算失败）
-const realUp = await probeHttp("http://127.0.0.1:9877/health", 1200);
-console.log("指引：真后端 127.0.0.1:9877/health → " + (realUp ? "在跑" : "未跑（跳过，不计失败）"));
+const realUp = await probeHttp("http://127.0.0.1:9887/health", 1200);
+console.log("指引：真后端 127.0.0.1:9887/health → " + (realUp ? "在跑" : "未跑（跳过，不计失败）"));
 
 console.log("探活自检：" + pass + " 通过 / " + fail + " 失败");
 if (fail) for (const f of fails) console.log("  x " + f.clause + (f.detail ? " — " + JSON.stringify(f.detail) : ""));

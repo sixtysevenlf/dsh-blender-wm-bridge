@@ -1,5 +1,5 @@
 import pathlib, sys
-RT = pathlib.Path("/home/sixtyseven67/DSH/dsh-blender-plugin/runtime")
+RT = pathlib.Path(__file__).resolve().parents[1] / "runtime"  # fork: 相对包根，不指回原版
 dry = "--dry" in sys.argv
 
 def sub(path, old, new, why):

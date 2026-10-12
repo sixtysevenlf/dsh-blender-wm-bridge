@@ -3,7 +3,7 @@
 
 跑法（无头；engine=none 只为省引擎前导）：
     blender_rt_headless(preload="audit", engine="none", factory_startup=True, timeout_ms=300000,
-        script="_p=K.win_path('/home/sixtyseven67/DSH/dsh-blender-plugin/tests/audit_file_selftest.py');"
+        script="_p=K.win_path('/home/sixtyseven67/DSH/测试/测试/blender-wm-bridge/tests/audit_file_selftest.py');"
                "exec(compile(open(_p,encoding='utf-8').read(),'x','exec'),globals())")
     # 也可以直接： blender -b --factory-startup --python tests/audit_file_selftest.py
 
@@ -55,8 +55,7 @@ def st_get_api():
     if "__file__" in globals():
         cands.append(_os.path.join(_os.path.dirname(_os.path.abspath(globals()["__file__"])),
                                    _os.pardir, "runtime", "audit.py"))
-    cands += ["/home/sixtyseven67/DSH/dsh-blender-plugin/runtime/audit.py",
-              "dsh-blender-plugin/runtime/audit.py"]
+    cands += ["blender-wm-bridge/runtime/audit.py"]  # fork: 去掉指回原版的候选
     for p in cands:
         for q in (p, _os.path.abspath(p)):
             if _os.path.exists(q):

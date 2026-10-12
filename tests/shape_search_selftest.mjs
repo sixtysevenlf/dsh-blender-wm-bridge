@@ -60,7 +60,7 @@ ok('单族展开文本里出现 shape_search（模型查目录就能看见）', 
 
 // ── B/C/D：真 HTTP（dry_run 在启动内环前就返回 ⇒ 不需要 Blender）
 const backend = spawn(process.execPath, [path.join(ROOT, 'runtime', 'server.mjs'), '--port', String(PORT)], {
-  env: Object.assign({}, process.env, { DSH_BLENDER_WORKDIR: TMP, DSH_BLENDER_HTTP_PORT: String(PORT) }),
+  env: Object.assign({}, process.env, { DSH_BLENDER_WM_WORKDIR: TMP, DSH_BLENDER_WM_HTTP_PORT: String(PORT) }),
   stdio: ['ignore', 'pipe', 'pipe'],
 })
 let log = ''

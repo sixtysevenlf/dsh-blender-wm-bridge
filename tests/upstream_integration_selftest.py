@@ -5,7 +5,7 @@
     blender_rt_headless(preload="audit,sculpt,mesh_fix,uv_tools,printcheck,sweep,material,render_guard,"
                                 "gate,human,vehicle,clearance,shapegen,faceeval,imgtools,pipeline",
         engine="none", factory_startup=True, timeout_ms=300000,
-        script="_p=K.win_path('/home/sixtyseven67/DSH/dsh-blender-plugin/tests/upstream_integration_selftest.py');"
+        script="_p=K.win_path('/home/sixtyseven67/DSH/测试/测试/blender-wm-bridge/tests/upstream_integration_selftest.py');"
                "exec(compile(open(_p,encoding='utf-8').read(),'x','exec'),globals())")
     # 也可以直接： blender -b --factory-startup --python tests/upstream_integration_selftest.py
     # ⚠ preload 要覆盖 main() 跑到的全部能力面；漏 pipeline 会红 2 条（t_pipeline / t_refs_single_op）。

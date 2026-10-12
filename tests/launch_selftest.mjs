@@ -75,12 +75,12 @@ console.log('隔离后端：http://127.0.0.1:' + String(HTTP_PORT) + ' · addon 
 
 const backend = spawn(process.execPath, [path.join(PKG, 'runtime', 'server.mjs'), '--port', String(HTTP_PORT)], {
   env: Object.assign({}, process.env, {
-    DSH_BLENDER_WORKDIR: TMP,
-    DSH_BLENDER_HTTP_PORT: String(HTTP_PORT),
-    DSH_BLENDER_ADDON_PORT: String(ADDON_PORT),
-    DSH_BLENDER_EXE: MOCK,
+    DSH_BLENDER_WM_WORKDIR: TMP,
+    DSH_BLENDER_WM_HTTP_PORT: String(HTTP_PORT),
+    DSH_BLENDER_WM_ADDON_PORT: String(ADDON_PORT),
+    DSH_BLENDER_WM_EXE: MOCK,
     DSH_MOCK_ADDON_PORT: String(ADDON_PORT),
-    DSH_BLENDER_HOLDER: 'launch-selftest',
+    DSH_BLENDER_WM_HOLDER: 'launch-selftest',
   }),
   stdio: ['ignore', 'pipe', 'pipe'],
 })
@@ -129,7 +129,7 @@ try {
 ok('boot 脚本已写入工作目录', bootSrc.length > 200, 'bytes=' + String(bootSrc.length))
 ok('boot 脚本会 enable addon', bootSrc.indexOf('addon_utils.enable') >= 0)
 ok('boot 脚本带直接 import 兜底（Blender 5.x extension 布局）', bootSrc.indexOf('spec_from_file_location') >= 0)
-ok('boot 脚本把结论写进 launch-status.json', bootSrc.indexOf('DSH_BLENDER_LAUNCH_STATUS') >= 0)
+ok('boot 脚本把结论写进 launch-status.json', bootSrc.indexOf('DSH_BLENDER_WM_LAUNCH_STATUS') >= 0)
 
 // ③ 假 blender 收到了 --python <boot>（启动参数连接得上）
 let mockArgs = ''

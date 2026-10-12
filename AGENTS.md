@@ -13,14 +13,14 @@
 | **§3 安装（5 步）** | 构建 → 配置 → 装进 profile → 起 Blender → 验证 |
 | **§8 常见故障**（英文 README 为 §9） | 报错先查表，别自己发明修法 |
 
-**不要凭直觉编**：路径、端口（addon `9876` / 后端 `9877`）、配置项名，一律从 `docs/配置参考.md` 取。
+**不要凭直觉编**：路径、端口（addon `9886` / 后端 `9887`）、配置项名，一律从 `docs/配置参考.md` 取。
 工具名 / op 名不确定时先 `blender_rt_plan(op="catalog")`（本地直出，不占往返）；写错会回 `did_you_mean`，照它给的骨架改。
 
 ## 1. 「装好了」的判据（不是「命令跑完了」）
 
 三条全绿才算装好；缺一条就是没装好，按 §8 排查（英文 README 为 §9）：
 
-1. `curl -sS http://127.0.0.1:9877/doctor` → `kind=ok`
+1. `curl -sS http://127.0.0.1:9887/doctor` → `kind=ok`
 2. `blender_viewport(op="doctor")` → `kind=ok`
 3. `blender_rt_see(max_size=560)` → 回一帧图（而不是一段报错文本）
 
@@ -49,7 +49,7 @@
 - 文档事实源在包内：`README.zh-CN.md` · `docs/操作教程.md` · `docs/配置参考.md` · `CHANGELOG.md`。
 - **发版流程**（v1.0.0 起）：① 版本号**三处同步**（`package.json` / `src/index.ts` 的 `PLUGIN_VERSION` / 重建后的 `lib/`）；
   ② `npm test` 全绿；③ 提交 → `git tag -a vX.Y.Z` → 推 `main` 与 tag → `gh release create`。
-- **发布 npm**：`npm pack` → `npm publish <tgz> --access public`（包名 `@dsh-external/dsh-blender-plugin`，需维护者 npm 登录）。
+- **发布 npm**：`npm pack` → `npm publish <tgz> --access public`（包名 `@dsh-external/dsh-blender-wm-bridge`，需维护者 npm 登录）。
   打包面靠 `runtime/.npmignore` + `package.json` 的 `files` 否定模式把 `runtime/ext/venv`（1.2 G）挡在包外 ——
   **改 `files` 后必须 `npm pack --dry-run` 核对**（健康值：约 1.3 MB / 125 文件；曾经漏成 458 MB / 12638 文件）。
 

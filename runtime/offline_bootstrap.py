@@ -23,12 +23,12 @@ import types
 
 def _find_rt():
     """定位 runtime 目录：env 优先 → 脚本所在目录 → 脚本目录的 runtime/ 子目录（被拷到 tmp 跑时用）。"""
-    cands = [os.environ.get("DSH_BLENDER_RUNTIME"), os.path.dirname(os.path.abspath(__file__)),
+    cands = [os.environ.get("DSH_BLENDER_WM_RUNTIME"), os.path.dirname(os.path.abspath(__file__)),
              os.path.join(os.path.dirname(os.path.abspath(__file__)), "runtime")]
     for c in cands:
         if c and os.path.exists(os.path.join(c, "kit.py")):
             return c
-    raise RuntimeError("定位不到 runtime 目录（kit.py 不在：%s）—— 设 DSH_BLENDER_RUNTIME=<插件>/runtime 或传 runtime_dir=" % cands)
+    raise RuntimeError("定位不到 runtime 目录（kit.py 不在：%s）—— 设 DSH_BLENDER_WM_RUNTIME=<插件>/runtime 或传 runtime_dir=" % cands)
 
 
 RT = _find_rt()

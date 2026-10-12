@@ -27,7 +27,7 @@ If it saved you some time, you're welcome to support its development on Afdian: 
 > 🏷 **Version: v1.0** (package `1.0.0`) — the first stable release. The model-facing surface is frozen at **15 tools**, and the plan channel exposes **28 families · 183 ops**.
 
 > **Let an AI model actually drive Blender** — no clicking, no screenshots-into-prompt, no MCP server.
-> One direct TCP channel (addon `127.0.0.1:9876` · backend `127.0.0.1:9877`) gives the model 15 tools: **see the viewport · edit the scene · watch a time window · run an inner search loop · profile and fix render perf · decimate objects safely · offload heavy work to a headless process · batch long work as jobs · roll back · store parameter presets · call any addon command · judge / verify / export through the contract layer · operate the channel itself.**
+> One direct TCP channel (addon `127.0.0.1:9886` · backend `127.0.0.1:9887`) gives the model 15 tools: **see the viewport · edit the scene · watch a time window · run an inner search loop · profile and fix render perf · decimate objects safely · offload heavy work to a headless process · batch long work as jobs · roll back · store parameter presets · call any addon command · judge / verify / export through the contract layer · operate the channel itself.**
 >
 > Acceptance is unchanged and unforgiving: `blender_viewport(op="doctor")` must return `kind=ok`. If it does not, it is not installed — walk §9.
 
@@ -60,15 +60,15 @@ Detailed walkthrough (Chinese): [`docs/操作教程.md`](docs/操作教程.md) �
 ## 2. Requirements
 
 1. **Blender 4.x / 5.x running in GUI mode** — this channel needs a live GUI session (`-b` is only used by the headless tools).
-2. **Blender addon `MCP for Blender`** (**not bundled**) listening on `127.0.0.1:9876`. It must provide at least:
+2. **Blender addon `MCP for Blender`** (**not bundled**) listening on `127.0.0.1:9886`. It must provide at least:
    `ping`, `get_scene_info`, `get_world_state_snapshot`, `get_object_info(name)`, `get_viewport_screenshot(max_size, filepath, format)`, `execute_code(code)`.
    The **harveyxiacn enhanced `blender_mcp_addon`** is also supported (different wire protocol — the plugin adapts automatically; `addonProtocol`, default `auto`, see [`docs/配置参考.md`](docs/配置参考.md) §6). That implementation has none of the five asset integrations, and the corresponding commands fail loudly instead of pretending.
    Enable it in Blender, then in a 3D viewport press `N` → **MCP for Blender** panel → **Connect**.
    Compatibility probe: `node runtime/_probe_tools.mjs`. Protocol self-test (no Blender needed): `node tests/protocol_selftest.mjs`.
 3. **Node.js ≥ 20**.
 4. **DSH (DeepSeek Harness)** — this package registers tools as a DSH plugin (`inject: ['tools']`).
-   Works with DSH in WSL + Blender on Windows (WSL interop is used to spawn `blender.exe`), with DSH and Blender on the same Windows machine (path mapping degrades gracefully), and — as of v1.0.4 — with **native Linux (not WSL)**: host and Blender share one OS, so no cross-OS path rewriting happens (`/home/…` reaches Blender as-is) and `blender_viewport op=doctor` reports your own distro. Blender is found via `which blender`; set `DSH_BLENDER_EXE` if it lives elsewhere. Default working dir: `os.tmpdir()/dsh-blender-rt` (see `docs/配置参考.md` §5).
-5. **macOS** — supported. Host and Blender run on the same machine, so there is no cross-OS path mapping: Blender is auto-detected under `/Applications` (`Blender*.app`, including `~/Applications` and `/Volumes/*/Applications`), and the working dir defaults to `~/.dsh-blender-rt`. Set `DSH_BLENDER_EXE` / `blenderExe` only if you installed Blender somewhere non-standard; `blender_viewport op=doctor` prints what was detected.
+   Works with DSH in WSL + Blender on Windows (WSL interop is used to spawn `blender.exe`), with DSH and Blender on the same Windows machine (path mapping degrades gracefully), and — as of v1.0.4 — with **native Linux (not WSL)**: host and Blender share one OS, so no cross-OS path rewriting happens (`/home/…` reaches Blender as-is) and `blender_viewport op=doctor` reports your own distro. Blender is found via `which blender`; set `DSH_BLENDER_WM_EXE` if it lives elsewhere. Default working dir: `os.tmpdir()/dsh-blender-wm-rt` (see `docs/配置参考.md` §5).
+5. **macOS** — supported. Host and Blender run on the same machine, so there is no cross-OS path mapping: Blender is auto-detected under `/Applications` (`Blender*.app`, including `~/Applications` and `/Volumes/*/Applications`), and the working dir defaults to `~/.dsh-blender-wm-rt`. Set `DSH_BLENDER_WM_EXE` / `blenderExe` only if you installed Blender somewhere non-standard; `blender_viewport op=doctor` prints what was detected.
 
 ---
 
@@ -76,29 +76,29 @@ Detailed walkthrough (Chinese): [`docs/操作教程.md`](docs/操作教程.md) �
 
 ```bash
 # 1) Build (needs a DSH source checkout to link cordis/schemastery/dsh-tools)
-cd dsh-blender-plugin
+cd blender-wm-bridge
 DSH_CHECKOUT=/path/to/dsh-harness bash scripts/build.sh     # produces lib/
 
 # 2) (optional) configure — auto-detection usually just works
-cp dsh-blender.config.example.json dsh-blender.config.json
+cp dsh-blender-wm.config.example.json dsh-blender-wm.config.json
 
 # 3) Install into DSH as a profile bundle (this package declares dsh.bundle):
-#    a) symlink into <profile>/node_modules/@dsh-external/dsh-blender-plugin
+#    a) symlink into <profile>/node_modules/@dsh-external/dsh-blender-wm-bridge
 #    b) in the profile package.json add "link:<abs path>" to dependencies and
-#       "@dsh-external/dsh-blender-plugin" to dsh.profile.bundles
+#       "@dsh-external/dsh-blender-wm-bridge" to dsh.profile.bundles
 #    c) dry-run: dsh --profile <profile> --dump-config   then restart DSH
 
 # 4) Start Blender and connect the addon — two routes:
-#    agent / unattended: blender_viewport(op="launch")   # boot script + spawn + polls 9876, idempotent
-#    manual: start Blender → press N → "MCP for Blender" → Connect (127.0.0.1:9876)
+#    agent / unattended: blender_viewport(op="launch")   # boot script + spawn + polls 9886, idempotent
+#    manual: start Blender → press N → "MCP for Blender" → Connect (127.0.0.1:9886)
 
 # 5) Verify — the ONLY acceptance criterion: doctor returns kind=ok (otherwise it is NOT installed; walk §9)
-curl -sS http://127.0.0.1:9877/health    # backend alive + provenance (is this process the disk copy?)
-curl -sS http://127.0.0.1:9877/doctor    # FULL round-trip through bpy; "kind":"ok" is the goal
-curl -sS http://127.0.0.1:9877/who       # write lease + channel metrics + effective config
+curl -sS http://127.0.0.1:9887/health    # backend alive + provenance (is this process the disk copy?)
+curl -sS http://127.0.0.1:9887/doctor    # FULL round-trip through bpy; "kind":"ok" is the goal
+curl -sS http://127.0.0.1:9887/who       # write lease + channel metrics + effective config
 ```
 
-The plugin auto-starts the backend (`node runtime/server.mjs`, default `127.0.0.1:9877`) and runs a **15-second watchdog** that respawns it if it dies. `blender_viewport op=stop` pauses the watchdog.
+The plugin auto-starts the backend (`node runtime/server.mjs`, default `127.0.0.1:9887`) and runs a **15-second watchdog** that respawns it if it dies. `blender_viewport op=stop` pauses the watchdog.
 
 ---
 
@@ -115,7 +115,7 @@ blender_rt_see(from="9,-9,6", look_at="0,0,1")         # a different angle, user
 ## 5. What's new in v1.0
 
 - **First stable release.** The model-facing surface is frozen at **15 tools**; the plan channel is **28 families · 183 ops**. A **capability lock** inside `npm test` pins both numbers and the 15 tool names — losing a family, an op or a tool turns the build red.
-- **macOS is a first-class host**: identity path mapping, `.app` auto-detection, `~/.dsh-blender-rt` working dir, and a `/proc`-free backend kill path. `blender_viewport(op="launch")` cold-starts a connected GUI Blender (measured 2.5 s). `npm run test:mac` = **45 assertions**; `npm run test:gui` = **11/11** on a real machine.
+- **macOS is a first-class host**: identity path mapping, `.app` auto-detection, `~/.dsh-blender-wm-rt` working dir, and a `/proc`-free backend kill path. `blender_viewport(op="launch")` cold-starts a connected GUI Blender (measured 2.5 s). `npm run test:mac` = **45 assertions**; `npm run test:gui` = **11/11** on a real machine.
 - **Five capability families landed — 21 ops, zero new tools**: `sculpt_*` (numpy displacement brushes; `bpy.ops.sculpt.brush_stroke` does not work from Python on Blender 5.2 — don't try it), `fix_*` (repair / decimate), `uv_*` (smart project / unwrap / project / pack), `print_*` (wall thickness + overhang, with a `resolution_mm` warning), `sweep_*` (parallel-transport sweep; bend radius computed before building).
 - **Materials and render state**: `material_build` (10 presets) → `material_apply` → `material_bake` (bakes procedural nodes to PNG, engine restored afterwards); `render_state` / `render_wait` / `render_reset` turn "Blender is rendering" into a seconds-level fact instead of a timeout — a write command during a render is refused with `BUSY_RENDER` in ~71 ms.
 - **A discoverability ladder instead of prose**: `blender_rt_plan(op="catalog")` is answered **locally** (no Blender round-trip, works under any lease) — every family says when to use it, when *not* to, and the minimal skeleton; `args={classes:true}` gives the 12 modeling classes; `<family>_help` gives operator detail; `args={handoff:true}` returns a paste-ready handoff block for subagents. Unknown op names answer `did_you_mean` with a skeleton, and a plan op sent to the wrong channel is corrected locally.
@@ -212,6 +212,7 @@ One tool for everything that has to be *decided*, not just executed. **Not sure 
 - **Contract layer** — `register_component` / `register_connection` (candidate types, parameter ranges, forbidden ops, confidence, required evidence) / `register_envelope`; `check_envelope` / `check_interference` (AABB sweep + BVH refine) / `check_interface`; `destructive_guard` — blocks `boolean_union / weld / merge / apply_transform` while a connection is **not resolved** (returns `Unsupported Destructive Merge`); `evidence` / `ledger` — every capture recorded with path, **md5**, size and view spec; `report` — provenance report.
 - **Hypothesis lifecycle** — `verify` gives three-state verdicts: `supported` / `refuted` / **`unresolved`** (external error within tolerance but the deciding parameter is *unidentifiable*); `flip` / `advance` record hypothesis changes; `fingerprint` binds evidence and verdicts to geometry digests, `ledger` marks entries `stale`, and a `supported` verdict **auto-demotes to `unresolved`** once geometry drifts (>10% diagonal or >20% size; animated objects are skipped).
 - **Planner** — `plan_load` / `plan_validate` / `plan_order` / `plan_build` (`dry_run` first) / `plan_graph` (mermaid/dot) / `plan_status` / `plan_diag`. Graph = Component (box/cylinder/sphere/mesh_copy) · Connection (candidates, status, forbidden, offset) · Feature (array/grid/mirror). IDE-style diagnostics: `UnresolvedConnection`, `UnsupportedDestructiveMerge`, `MissingComponent`, `Cycle`, `ParamOutOfRange`, `UnknownKind`; hard errors refuse to compile.
+- **Geometry base layer (`runtime/geo.py`, always injected like `kit`)** — the mechanical layer: **verbs only, no nouns**. `box/cyl/tube/prism/loft/stack` · `boolean` (with a **degeneracy guard** that refuses EXACT boolean's silent union-degradation on self-intersecting input) · `hole_cut/slots_cut` (batched, one boolean pass) · `mirror/linear_array/join` · `bevel/shade_auto` (**topology-preserving auto-smooth**, `set_sharp_from_angle` — not EDGE_SPLIT) · `mesh_stats/tri_count/bbox_all` · `quick_views` · `own` (COL_/`dsh.owner`). Shape defaults are deliberately **not** provided: pitches, station tables, section functions and coordinates stay in the project's `spec.py`.
 - **Inspection and acceptance** — `audit_mesh` / `audit_scene` / `audit_duplicates` / `audit_measure` / `audit_purge_orphans` / `audit_drift`; assembly gates `audit_connectivity` / `audit_gate` (bbox pre-screen + BVH mesh confirmation; visible floater = longest bbox edge ≥ 1% of the model; the `micro_gap_mm` caliber is reported back — 0.3 mm is the single-solid/3D-print default, use 1–2 mm for assemblies designed with clearance) / `audit_snap_floaters` (report-only by default); cross-`.blend` `audit_overlap` and `audit_interference` (intersection **volume estimate in mm³ with a 95% CI**, Monte-Carlo ray parity — open/non-manifold meshes report `unresolved` instead of a plausible-looking wrong number); `print_walls` / `print_overhang` / `print_report` (BVH ray thickness + normal-cone overhang, no 3D Print Toolbox needed; bed-contact faces are excluded from the overhang area by default — reported separately as `bed_area_mm2`, with `exclude_bed=false` restoring the old caliber); `clear_check` (rule-table paired clearance); `calib_run` (what can my gates actually catch? `baseline_pass` must be true); `face_ratios` / `face_compare`; `gltf_validate` / `ext_mesh_check` (external glTF-Validator and open3d second opinions).
 - **Reference-image work** — `img_scan` / `img_rectify` / `img_crop` / `img_annotate` / `img_diff` (turn pixels into numbers); `shape_plan` → `shape_sections` → `shape_loft` → `shape_panels`; `vehicle_sections` → `vehicle_loft` → `vehicle_panels` (proportion gate first, wheel-arch boolean = zero interpenetration); `human_base` / `human_measure` / `human_spec` / `human_head`; `qc_compare` (adaptive mask + centroid/scale alignment, self-IoU **1.0000**), `qc_render_views` (N views in one call, auto-framing from the merged AABB, temporary three-point rig, per-view PNG + ms + md5 + `render_views.jsonl`, cumulative `budget_s`, optional `ref_path` → IoU per view — measured 3 views in **3487 ms**), `montage` (contact sheet + per-cell metrics).
 - **Geometry production and delivery** — `sculpt_scan` → `sculpt_setup` → `sculpt_apply` (numpy displacement brushes draw/inflate/pinch/flatten/smooth/crease + voxel/multires/dyntopo + masks; voxel remesh 1986 → 12148 verts in **0.084 s**; mirrored strokes must be separate strokes); `fix_repair` / `fix_decimate` (audit diagnoses, fix treats — a no-op repair returns `ok=false`); `uv_stats` / `uv_smart_project` / `uv_unwrap` / `uv_project` / `uv_pack`; `sweep_analyze` → `sweep_build` (bend radius checked before building; too tight = refused unless `force=true`); `material_scan` / `material_build` (10 presets) / `material_apply` / `material_bake`; `deliver_export` / `deliver_verify` (unit-box normalize, multi-group OBJ+MTL, md5 manifest — one byte of tampering must FAIL); `generator_save` / `generator_run` / `generator_list|get|diff` (the program is the shape: reproduced in a **fresh headless Blender process**, cached by source hash — the source parameter is `code=`, run parameters go in the nested `args=`); `motion_joints` / `motion_joint` / `motion_infer_axis` (two independent evidence paths; conflicting evidence ⇒ `unresolved`, never a pick) / `motion_measure` (kinematic + BVH evidence, **not** physics) / `motion_export_urdf` / `motion_export_usda`; `mate_check` + `fit_help` (contact-area fraction, median single-side gap, penetration depth on the actual mesh; fit classes clearance 0.25 · location 0.15 · press −0.05 · snap 0.20 mm per side, plus ISO 273 from `runtime/assembly_features.json`); `interference_report` (depth/volume/severity, `declared` exemption for registered joints); `gate_plan` → `gate_run` (a project's acceptance spec run in one call; read the **three-state `verdict`** — `degraded` is not a pass); `pipe_run` (with `artifact` references between steps); `render_lock` / `render_status` (cross-process render queue lock); `render_state` / `render_wait` / `render_reset`; `gui_frame` / `gui_shading` / `gui_open` (things that need a real UI context — inside `rt_do` Blender's `context.screen` is `None`).
@@ -272,19 +273,19 @@ Resolution order: **environment → config file → auto-detect → default**. N
 
 | Setting | Env var | Config key | Default |
 |---|---|---|---|
-| Working dir (frames/scripts) | `DSH_BLENDER_WORKDIR` | `workDir` | `%LOCALAPPDATA%\dsh-blender-rt` (macOS: `~/.dsh-blender-rt`) |
-| Blender executable | `DSH_BLENDER_EXE` | `blenderExe` | auto (Program Files / Steam / `/Applications` / PATH) |
-| Addon host/port | `DSH_BLENDER_ADDON_HOST/PORT` | `addonHost`/`addonPort` | `127.0.0.1:9876` |
-| Addon wire protocol | `DSH_BLENDER_ADDON_PROTOCOL` | `addonProtocol` | `auto` (`ahujasid` / `category-action`) |
-| Backend port | `DSH_BLENDER_HTTP_PORT` | `httpPort` | `9877` |
-| Hot-worker port | `DSH_BLENDER_WORKER_PORT` | `workerPort` | `9879` |
-| Blender user config/scripts (GPU prefs) | `DSH_BLENDER_USER_CONFIG` / `DSH_BLENDER_USER_SCRIPTS` | `blenderUserConfig`/`blenderUserScripts` | `null` (headless does not read them) |
-| Lease identity / TTL | `DSH_BLENDER_HOLDER` / `DSH_BLENDER_LEASE_TTL_MS` | `holder`/`leaseTtlMs` | `plugin-pid-<pid>` / 600000 ms |
+| Working dir (frames/scripts) | `DSH_BLENDER_WM_WORKDIR` | `workDir` | `%LOCALAPPDATA%\dsh-blender-wm-rt` (macOS: `~/.dsh-blender-wm-rt`) |
+| Blender executable | `DSH_BLENDER_WM_EXE` | `blenderExe` | auto (Program Files / Steam / `/Applications` / PATH) |
+| Addon host/port | `DSH_BLENDER_WM_ADDON_HOST/PORT` | `addonHost`/`addonPort` | `127.0.0.1:9886` |
+| Addon wire protocol | `DSH_BLENDER_WM_ADDON_PROTOCOL` | `addonProtocol` | `auto` (`ahujasid` / `category-action`) |
+| Backend port | `DSH_BLENDER_WM_HTTP_PORT` | `httpPort` | `9887` |
+| Hot-worker port | `DSH_BLENDER_WM_WORKER_PORT` | `workerPort` | `9879` |
+| Blender user config/scripts (GPU prefs) | `DSH_BLENDER_WM_USER_CONFIG` / `DSH_BLENDER_WM_USER_SCRIPTS` | `blenderUserConfig`/`blenderUserScripts` | `null` (headless does not read them) |
+| Lease identity / TTL | `DSH_BLENDER_WM_HOLDER` / `DSH_BLENDER_WM_LEASE_TTL_MS` | `holder`/`leaseTtlMs` | `plugin-pid-<pid>` / 600000 ms |
 | Headless client wait window | `DSH_HEADLESS_WAIT_MS` | — | 100000 ms (then `{kind:"promoted", jobId}`) |
 | Auto-promote headless to the job layer | `DSH_HEADLESS_AUTO_JOB_MS` | — | 0 (off) |
 
-Config file locations: `$DSH_BLENDER_CONFIG` → `<package>/dsh-blender.config.json` → `~/.dsh/dsh-blender.config.json`.
-Check the **effective** config any time: `curl -s http://127.0.0.1:9877/who` (look at the `config` block) or `blender_viewport op=doctor`. Full details: [`docs/配置参考.md`](docs/配置参考.md).
+Config file locations: `$DSH_BLENDER_WM_CONFIG` → `<package>/dsh-blender-wm.config.json` → `~/.dsh/dsh-blender-wm.config.json`.
+Check the **effective** config any time: `curl -s http://127.0.0.1:9887/who` (look at the `config` block) or `blender_viewport op=doctor`. Full details: [`docs/配置参考.md`](docs/配置参考.md).
 
 The working directory must be readable/writable **from both ends** (Blender is a Windows/macOS process, the host may be WSL/Linux): give the Windows form and the plugin maps the WSL form, and don't point it at a read-only mount or a WSL-internal path. Headless `outdir`/`out_json` accept WSL paths directly (the receipt echoes both real forms). Both `DSH_HEADLESS_*` variables are read once at module load, so restart DSH after changing them.
 
@@ -313,12 +314,12 @@ Decoding a failure is a three-level diagnosis: TCP unreachable → Blender/addon
 ## 10. Repository layout
 
 ```text
-dsh-blender-plugin/
+blender-wm-bridge/
 ├── src/index.ts                # DSH host: the 15 tools, backend watchdog (15 s), lease heartbeat
 ├── runtime/
 │   ├── config.mjs              # env → config file → auto-detect → defaults (WSL / Windows / macOS)
 │   ├── engine.mjs              # addon socket client, op routing, command catalog, view/headless
-│   ├── server.mjs              # HTTP backend on 127.0.0.1:9877 (+ lease gating, NDJSON streaming)
+│   ├── server.mjs              # HTTP backend on 127.0.0.1:9887 (+ lease gating, NDJSON streaming)
 │   ├── catalog.mjs             # plan catalog: 28 families · 183 ops, tool details, provenance self-check
 │   ├── classes.mjs             # 12 modeling classes (first step / chain / forbidden / acceptance gate)
 │   ├── addon-protocol.mjs      # flat vs category/action addon protocol adapter
@@ -344,7 +345,7 @@ dsh-blender-plugin/
 │   └── examples/chair-backrest/  # runnable example + recorded results & evidence images
 ├── tests/                      # reproducible checks (protocol · lease · capability lock · contract · acceptance)
 ├── lib/                        # prebuilt host output (rebuild if your DSH differs)
-└── dsh-blender.config.example.json
+└── dsh-blender-wm.config.example.json
 ```
 
 ---
@@ -363,6 +364,7 @@ dsh-blender-plugin/
 8. `blender_rt_plan(op="qc_render_selftest")` → **29/29** (parts-color restore, per-line `device`, view catalog/aliases, projection cross-check) · `audit_gate_selftest` → assembly-gate synthetic check · `generator_selftest` → compile gate + cache + expiry · `qc_self_check` → `iou_self = 1.0`.
 9. `tests/engine_probe.sh` → **16/16** and `tests/view_diag_selftest.py` → **16/16** · `tests/png_decode.py <png>` confirms byte-exact colours (no double gamma, no vertical flip).
 10. Channel checks: `/health` (backend + provenance) · `/doctor` (`kind=ok`) · `/who` (lease + metrics), plus a 7-request lease walkthrough against `/lease`, `/act`, `/who`, `/release`.
+11. `tests/geo_selftest.py` → **15/15**: box/cyl/tube/loft manifoldness, boolean guard (fires on envelope growth, **no false positive** on a protruding cutter), topology-preserving auto-smooth, mirror/array, mm bbox/tri counts. Run: `blender -b --factory-startup --python tests/geo_selftest.py`.
 
 ---
 

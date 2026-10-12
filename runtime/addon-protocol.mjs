@@ -215,7 +215,7 @@ export function resetProtocolCache() { cache.clear(); }
  */
 export async function resolveProtocol(opts = {}) {
   const host = opts.host || '127.0.0.1';
-  const port = Number(opts.port) || 9876;
+  const port = Number(opts.port) || 9886;
   const prefer = opts.prefer || 'auto';
   const key = host + ':' + port + '/' + prefer;
   if (cache.has(key)) return cache.get(key);

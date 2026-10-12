@@ -17,7 +17,7 @@ license: MIT（融合自 RobLe3/cc-blender-skill 与 arjun988/blender-skills，�
 
 | 要做的事 | 用哪个工具 | 关键语义 |
 |---|---|---|
-| **拉起 Blender（GUI 会话）** | `blender_viewport(op="launch")` | **v0.9.4 起 agent 能自己点亮 GUI**：写 boot 脚本（GUI 里 enable addon → 起 socket server）→ detached spawn blender.exe → **轮询 9876 端口**（唯一可信判据）→ 顺手 doctor；幂等（已在监听只回 already，不会堆出第二个 Blender）。参数：wait_ms / file / exe / addon_module / addon_file / dry_run |
+| **拉起 Blender（GUI 会话）** | `blender_viewport(op="launch")` | **v0.9.4 起 agent 能自己点亮 GUI**：写 boot 脚本（GUI 里 enable addon → 起 socket server）→ detached spawn blender.exe → **轮询 9886 端口**（唯一可信判据）→ 顺手 doctor；幂等（已在监听只回 already，不会堆出第二个 Blender）。参数：wait_ms / file / exe / addon_module / addon_file / dry_run |
 | 迭代建模、改一步看一眼 | `blender_rt_do` | **常驻 GUI 会话 + 持久内核 K**：整步约 105ms，变量**跨调用保留**；可选立刻回一帧 |
 | 批处理 / 重活（**第一路径**） | `blender_rt_headless` | **每次都是全新 Blender 进程**（blender -b）：变量**不保留**，每次重新 import；shots 参数可一次出多视角；引擎默认 EEVEE + 光追 |
 | 跑很久的活 | `blender_rt_job` | 作业层：op=start / **wait** / status / collect；日志落 `jobs/<id>/`；超时不丢结果（回 promoted + jobId） |
@@ -460,7 +460,7 @@ print(f"cleanup:{obj.name} verts:{len(obj.data.vertices)}")
 # ② 画面：用**与参考图相同的机位**出图（多视角 harness 自带取景与三点光）
 #   blender_rt_plan(op="qc_render_views", args={
 #       "views": [{"name": "front", "from": [0, -12, 1.6], "look_at": [0, 0, 1.6], "lens": 50}],
-#       "res": [1280, 720], "samples": 64, "outdir": "D:/DSH/blender/out/qc"})
+#       "res": [1280, 720], "samples": 64, "outdir": "D:/DSH/blender-wm/out/qc"})
 #   → 逐张 md5 + coverage_estimate；主体占画面 <5% 会给 subject_too_small 警告
 ```
 

@@ -21,7 +21,7 @@ ops：
 """
 import json
 
-SHAPE_VERSION = 1
+SHAPE_VERSION = 2  # v2：新增 S0 草稿评估（shape_draft / shape_draft_check）
 
 # 类别 → 还原协议。views 里 s/f/t = 侧/前/顶 视；ratios = 必须盯住的比例；ops = 该配的算子
 CLASSES = {
@@ -121,6 +121,8 @@ DECISION = [
 ]
 
 STEPS = [
+    "⓪ 草稿评估：shape_draft —— 只判「是什么 / 大概多大（量级档）/ 拆成几块 / 主体配件 / 什么形 / 哪凸哪凹」，"
+    "**不量 mm、不数 mesh**；填好表用 shape_draft_check 校验（图来了再逐行完善）",
     "① 校正：照片 → img_rectify（正交三视图可跳过）",
     "② 量包络：长/宽/高 + 该类别关键比例（先过比例门，不过别往下做）",
     "③ 量站表：shape_sections（侧视逐列上下边界 + 俯视逐列半宽 + 前视截面轮廓）",
@@ -282,6 +284,290 @@ def shape_revolve(profile=None, name="Revolved", axis="Z", segments=48, angle_de
         return _j({"ok": False, "error": "%s: %s" % (type(e).__name__, str(e)[:220])})
 
 
+# ── S0 粗评估（draft recon）★ 参考图还原的**第一步** ────────────────────────────
+# 动机（实测教训）：一上来就 img_rectify/shape_sections 量 mm、跑 audit_* 数对象与面数，
+#   在**还没有参考图**的阶段等于把编出来的数字当成规格；后续图来了又要推翻重来。
+# 正确姿势：先"在脑子里打草稿"——只判**是什么 / 大概多大 / 拆成几块 / 各是什么形 / 空间上哪凸哪凹**，
+#   全部带 confidence 与 source，**允许 unknown，禁止写死**。
+# 本契约把该步固化成机械可检的东西：
+#   R1 尺寸只给对数档 A–F（禁止 mm/cm 级绝对值）；
+#   R2 禁止在本阶段调 audit_*/print_report（数对象/面数）与量站表算子；
+#   R3 每字段带 confidence + source，每件带 to_confirm（= 图来了要补什么）。
+import re as _re
+
+_DRAFT_MM_RE = _re.compile(r"\d+(\.\d+)?\s*(mm|毫米|cm|厘米)", _re.I)
+_DRAFT_AUTO_RE = _re.compile(r"^[A-Za-z_]+\.\d{3}$")
+
+DRAFT_STAGE = "S0"
+
+SIZE_CLASSES = [
+    {"id": "A", "range": "<10cm",   "anchor": "掌上小物（首饰/零件/打火机）"},
+    {"id": "B", "range": "10–30cm", "anchor": "单手可持（手枪/手柄/小道具）"},
+    {"id": "C", "range": "0.3–1m",  "anchor": "双手或怀抱（长枪/椅子/小家电）"},
+    {"id": "D", "range": "1–3m",    "anchor": "一人高到两人长（人/摩托/沙发/小艇）"},
+    {"id": "E", "range": "3–10m",   "anchor": "车辆级（轿车/装甲车/小船/房间）"},
+    {"id": "F", "range": ">10m",    "anchor": "建筑/舰船/飞行器级"},
+]
+
+DRAFT_FORMS = [
+    {"id": "faceted",    "judge": "有明显棱线与平面拼装（装甲/军模/机械板件）",
+     "impl": "基本体 + 布尔 → bevel(2–3 段保硬边) → audit_mesh"},
+    {"id": "smooth",     "judge": "连续大曲率但仍是工程体（钣金/消费电子/圆润道具）",
+     "impl": "Bevel(2) → SubSurf(2) 或 crease_lines(radius_mm=…)（radius 到 S3 才给）"},
+    {"id": "organic",    "judge": "无棱线、体积感强、生物形态",
+     "impl": "sculpt_setup(VOXEL) → sculpt_apply(位移笔刷)；别用布尔拼体积"},
+    {"id": "rotational", "judge": "绕一条轴旋转得到（瓶/罐/轮毂/喷口/消焰器）",
+     "impl": "shape_revolve（母线绕轴）—— 别用放样"},
+    {"id": "plate",      "judge": "一维长、截面基本不变（板/管/翼型/机匣）",
+     "impl": "section_outline/超椭圆 + 特征线 → shape_loft"},
+    {"id": "repeats",    "judge": "同形件规律排布（履带/散热片/齿/铆钉）",
+     "impl": "generator_save→run（改参不改码）或 Array+Curve"},
+    {"id": "sweep",      "judge": "沿路径走的细长件（管路/线缆/轨道/护栏）",
+     "impl": "sweep_analyze（先算弯折半径）→ sweep_build"},
+]
+
+DRAFT_FEATURES = [
+    {"id": "void_through", "judge": "能透过去看到背景", "attrs": ["通/盲", "位置(部件+上中下)", "数量级 1|数个|阵列"],
+     "impl": "布尔（先 destructive_guard 判别）或直接放样成形"},
+    {"id": "boss",         "judge": "局部外凸",         "attrs": ["形状 块|柱|肋", "位置", "长径比档"],
+     "impl": "基本体 + 并集 + 倒角"},
+    {"id": "recess",       "judge": "局部内凹",         "attrs": ["开口形状", "位置", "是否槽"],
+     "impl": "布尔差 / inset_lines（inset_mm 到 S3 才给）"},
+    {"id": "seam",         "judge": "两件之间的缝/线",   "attrs": ["走向 纵|横|环", "是否贯穿"],
+     "impl": "shape_panels 出真缝 → clear_check（到 S5 才量缝宽）"},
+    {"id": "thin_wall",    "judge": "一片板状结构",      "attrs": ["位置", "是否要 3D 打印"],
+     "impl": "放样/挤出成板；壁厚走 print_report（**到 S5 才量**）"},
+    {"id": "grille",       "judge": "周期性孔阵/格栅",   "attrs": ["行列数量级", "朝向"],
+     "impl": "generator_* 或 Array + 批量布尔"},
+]
+
+DRAFT_ROLES = ["主体", "配件", "重复件"]
+
+DRAFT_RULES = [
+    {"id": "R1", "rule": "不量精确尺寸", "check": "尺寸字段只能是量级档 A–F 或相对比例（如 0.3×）；出现 mm/cm 级绝对值即拒收"},
+    {"id": "R2", "rule": "不数 mesh",   "check": "本阶段禁止调 audit_scene / audit_mesh / print_report（对象数·面数·顶点数）；只允许 part_count_hint 这种量级估计"},
+    {"id": "R3", "rule": "不定死数据",   "check": "每字段带 confidence(high|mid|low) 与 source；判不出写 unknown；每件必须带 to_confirm（驱动图来了再完善）"},
+]
+
+DRAFT_FORBIDDEN_OPS = ["audit_scene", "audit_mesh", "print_report", "print_walls", "print_overhang",
+                       "shape_sections", "vehicle_sections", "img_rectify", "vehicle_package"]
+
+DRAFT_ITERATION = [
+    "S0 草稿（无图，本步）：T1 全量 + T2 骨架 + T3/T4 定性；fidelity=draft，全部 provisional",
+    "S1 读图：img_scan 只拿 bbox/长宽比/主轴角 —— 像素 ≠ 毫米，仍不给 mm",
+    "S2 标定（第一次有数字）：img_rectify → mm_per_px → 包络，provisional 逐步转 confirmed",
+    "S3 站表/截面：shape_sections + shape_plan 给的 section_path（此时才允许 mm）",
+    "S4 出图对照：shape_loft → qc_render_views(ref_path=) 逐视图 IoU + 特征线对照",
+    "S5 验收：audit_* / gate_run（这一步才数面数、量间隙）",
+]
+
+_DRAFT_T1 = [
+    {"k": "name", "ask": "这是什么东西", "how": "读需求文字 / 看图直接命名", "precision": "定性", "refine": "基本不变"},
+    {"k": "class", "ask": "归到哪一类", "how": "映射 shape_plan 的 10 类；可给 1 主 + 1 备选", "precision": "粗归类", "refine": "图来了复核 section_path"},
+    {"k": "size_class", "ask": "现实大概多大", "how": "对数档 A–F + 人体尺度锚（掌上/单手/怀抱/一人高/车长/建筑）", "precision": "只给档位，禁止 mm", "refine": "S2 标定后才有 mm"},
+    {"k": "size_ref", "ask": "拿什么做参照", "how": "人类尺度锚，不写数字", "precision": "定性锚点", "refine": "换成实测包络"},
+    {"k": "symmetry", "ask": "对称性", "how": "双侧 / 轴对称 / 单侧手性 / 无", "precision": "定性", "refine": "复核"},
+    {"k": "orientation", "ask": "轴向语义", "how": "长轴·宽轴·薄轴 + 哪根朝上/朝前（写清项目坐标，如 +X=枪口）", "precision": "定性", "refine": "冻结进 spec"},
+    {"k": "confidence", "ask": "把握多大", "how": "high/mid/low", "precision": "—", "refine": "逐轮提升"},
+]
+
+_DRAFT_T2 = [
+    {"k": "part", "ask": "这块叫什么", "how": "语义命名（禁止 Cube.001 这类）", "precision": "定性", "refine": "沿用为对象命名"},
+    {"k": "role", "ask": "主体还是配件", "how": "判据（定性、不算体积）：① 占包络主要体量 ② 被 2 个以上件挂靠 ③ 少了它整体不成立 —— 满足①即主体，其余为配件/重复件", "precision": "主体唯一（多体量则并列），可改", "refine": "装配后复核"},
+    {"k": "parent", "ask": "挂在哪", "how": "装配树（主体为 root）", "precision": "粗，可改", "refine": "接口表（spec）"},
+    {"k": "size_class", "ask": "该件量级", "how": "同 T1 的 A–F 档", "precision": "档位", "refine": "S2 标定"},
+    {"k": "rel", "ask": "相对主体的比例", "how": "目测比例，如 1.0× / 0.3×（标 approx）", "precision": "粗", "refine": "实测修正"},
+    {"k": "form_class", "ask": "什么形", "how": "见 T3（一个物体常是混合体：按件分别标）", "precision": "定性", "refine": "S3 选截面通路"},
+    {"k": "features", "ask": "有什么空间特征", "how": "见 T4；只记 通/盲、位置档、数量级", "precision": "定性", "refine": "S3 给尺寸"},
+    {"k": "build_path", "ask": "怎么做", "how": "填算子链：shape_plan(object_class=…) 给的 section_path + 技能配方（见 T3 的 impl）", "precision": "粗选路子，可改", "refine": "冻结进 spec"},
+    {"k": "evidence", "ask": "凭什么这么判", "how": "写清来源：需求文字 / 参考图第 N 张 / 常识先验", "precision": "必填，不许空", "refine": "图来了补图号"},
+    {"k": "to_confirm", "ask": "图来了要定什么", "how": "例：截面形状 / 该特征出现几次 / 是否有第二处同类", "precision": "必填（这列驱动迭代）", "refine": "逐条销项"},
+    {"k": "confidence", "ask": "把握多大", "how": "high/mid/low", "precision": "—", "refine": "逐轮提升"},
+]
+
+
+def _draft_record_skeleton(object_class=None):
+    return {
+        "object": {"name": None, "class": (object_class or None), "size_class": None, "size_ref": None,
+                   "symmetry": None, "orientation": None, "confidence": None, "source": None},
+        "parts": [{"part": None, "role": None, "parent": None, "size_class": None, "rel": None,
+                   "form_class": None, "features": [], "build_path": None,
+                   "evidence": None, "to_confirm": [], "confidence": None}],
+        "part_count_hint": None,
+    }
+
+
+def shape_draft(object_class=None, hint=None):
+    """S0 草稿评估：给「制作表格」的字段契约 + 可填骨架。**本 op 不返回任何测量值。**
+
+    object_class 可选（vehicle/humanoid/… 之一）—— 给了就附带该类的"关注项"（要盯哪些比例、
+    建议哪条截面通路），但**只是关注项的名字，不含数字**；数值一律等 S2 标定之后再取。
+    """
+    c = str(object_class).lower() if object_class else None
+    focus = None
+    unknown_class = None
+    if c:
+        if c in CLASSES:
+            row = CLASSES[c]
+            focus = {"object_class": c, "views": row.get("views"), "symmetric": row.get("symmetric"),
+                     "volumes": row.get("volumes"), "focus_ratios": row.get("ratios"),
+                     "section_path": SECTION_PATH.get(c), "traps": row.get("traps"),
+                     "note": "以上是**关注项的名字**（该盯什么），不是测量值；数值等 S2 标定后再取"}
+        else:
+            unknown_class = {"object_class": object_class, "known": sorted(CLASSES)}
+    out = {
+        "ok": True, "op": "shape_draft", "stage": DRAFT_STAGE, "fidelity": "draft", "revisable": True,
+        "what": "参考图还原的**第一步**：先出一张制作表格（是什么/大概多大/拆成几块/各是什么形/哪凸哪凹），"
+                "像在脑子里打草稿 —— **不要把数据定死**，图来了再逐行补数字",
+        "why_draft": "此阶段通常还没有参考图；先量 mm / 数 mesh 等于把编出来的数字当规格，图来了必推翻重来",
+        "rules": DRAFT_RULES,
+        "forbidden_ops_this_stage": DRAFT_FORBIDDEN_OPS,
+        "forbidden_note": "以上算子在 S0 阶段**不要调**（它们会产出精确尺寸或对象/面数统计）；到 S3/S5 才用",
+        "enums": {"size_class": SIZE_CLASSES, "form_class": DRAFT_FORMS, "feature_kind": DRAFT_FEATURES,
+                  "role": DRAFT_ROLES, "confidence": ["high", "mid", "low"]},
+        "tables": {
+            "T1_object": {"one_row": True, "fields": _DRAFT_T1,
+                          "done_when": "name + class + size_class 三项齐 = T1 完成（不要求任何 mm 数字）"},
+            "T2_parts": {"one_row_per_part": True, "fields": _DRAFT_T2,
+                         "done_when": "每件都有 role/form_class/evidence/to_confirm = T2 完成；"
+                                      "这张表同时是后续分工与接口表的雏形"},
+            "T3_form": {"one_row_per_part": True, "enums": DRAFT_FORMS,
+                        "rule": "一个物体常是混合体（如角色=有机身体+硬表面装备）⇒ 按件分别标，不要求整体一个答案"},
+            "T4_features": {"one_row_per_feature": True, "enums": DRAFT_FEATURES,
+                            "rule": "只定位到「部件 + 上中下/前后」与数量级；孔径/深度/壁厚留到 S3/S5"},
+        },
+        "record": _draft_record_skeleton(c if (c and c in CLASSES) else None),
+        "iteration": DRAFT_ITERATION,
+        "next": "① 把 record 填成表格 → shape_draft_check(record=…) 机械校验；"
+                "② 拿到参考图 → S1 img_scan（只拿轮廓/比例，不给 mm）→ S2 img_rectify 标定",
+    }
+    if focus:
+        out["focus"] = focus
+    if unknown_class:
+        out["unknown_class"] = unknown_class
+        out["warning"] = "未知 object_class=%s —— 仍可用 generic 关注项（先量长/宽/高三个包络比）" % object_class
+    if hint:
+        out["hint_echo"] = str(hint)[:200]
+
+    return _j(out)
+
+
+def _draft_scan_absolute(obj, path="", hits=None):
+    """递归找 mm/cm 级绝对值（key 以 _mm/_cm 结尾，或字符串里带数字+单位）。"""
+    if hits is None:
+        hits = []
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            kp = path + "." + str(k)
+            lk = str(k).lower()
+            if lk.endswith("_mm") or lk.endswith("_cm") or lk in ("mm", "cm"):
+                hits.append(kp)
+            _draft_scan_absolute(v, kp, hits)
+    elif isinstance(obj, (list, tuple)):
+        for i, v in enumerate(obj):
+            _draft_scan_absolute(v, "%s[%d]" % (path, i), hits)
+    elif isinstance(obj, str):
+        if _DRAFT_MM_RE.search(obj):
+            hits.append("%s = %s" % (path, obj[:48]))
+    return hits
+
+
+def shape_draft_check(record=None):
+    """校验 S0 草稿表：字段齐不齐 + 有没有违规（mm 级尺寸 / 面数统计口径）。
+
+    record 可传 dict 或 JSON 字符串（与 shape_draft 返回的 record 骨架同形）。
+    返回 errors（必须改）/ warnings（建议看），**不修改场景**。
+    """
+    if isinstance(record, str):
+        try:
+            record = json.loads(record)
+        except Exception as e:
+            return _j({"ok": False, "stage": DRAFT_STAGE, "error": "record 不是合法 JSON: %s" % str(e)[:160]})
+    if record is None:
+        return _j({"ok": False, "stage": DRAFT_STAGE,
+                   "error": "缺 record —— 先 shape_draft() 拿骨架，填好后传 record={object:…, parts:[…]}"})
+    if not isinstance(record, dict):
+        return _j({"ok": False, "stage": DRAFT_STAGE, "error": "record 必须是对象(dict)"})
+
+    errors, warnings = [], []
+    valid_size = {x["id"] for x in SIZE_CLASSES}
+    valid_form = {x["id"] for x in DRAFT_FORMS}
+    valid_feat = {x["id"] for x in DRAFT_FEATURES}
+    valid_conf = {"high", "mid", "low"}
+
+    obj = record.get("object")
+    if not isinstance(obj, dict):
+        errors.append("缺 object 段（T1）")
+        obj = {}
+    for k in ("name", "class", "size_class", "size_ref", "confidence"):
+        if not obj.get(k):
+            errors.append("object.%s 缺失（T1 未完成）" % k)
+    if obj.get("class") and str(obj["class"]).lower() not in CLASSES:
+        errors.append("object.class=%s 不在 shape_plan 的 10 类里（%s）" % (obj["class"], ",".join(sorted(CLASSES))))
+    if obj.get("size_class") and str(obj["size_class"]).upper() not in valid_size:
+        errors.append("object.size_class=%s 不是 A–F 档（size_class 只收档位，不收数字）" % obj["size_class"])
+    if obj.get("confidence") and str(obj["confidence"]).lower() not in valid_conf:
+        errors.append("object.confidence=%s 不是 high/mid/low" % obj["confidence"])
+
+    parts = record.get("parts")
+    if not isinstance(parts, list) or not parts:
+        errors.append("parts 为空（T2 至少要有一行，主体也算一行）")
+        parts = []
+    n_main = 0
+    for i, p in enumerate(parts):
+        tag = "parts[%d]" % i
+        if not isinstance(p, dict):
+            errors.append("%s 不是对象" % tag)
+            continue
+        pname = str(p.get("part") or "").strip()
+        if not pname:
+            errors.append("%s.part 缺失（必须先命名）" % tag)
+        elif _DRAFT_AUTO_RE.match(pname):
+            warnings.append("%s.part=%s 像自动名，改成语义命名" % (tag, pname))
+        for k in ("role", "form_class", "evidence", "to_confirm", "confidence"):
+            v = p.get(k)
+            if v is None or (isinstance(v, str) and not v.strip()) or (isinstance(v, list) and not v):
+                errors.append("%s.%s 缺失（T2 每件都要有 role/form_class/evidence/to_confirm/confidence）" % (tag, k))
+        role = str(p.get("role") or "")
+        if role and role not in DRAFT_ROLES:
+            errors.append("%s.role=%s 不是 %s 之一" % (tag, role, "/".join(DRAFT_ROLES)))
+        if role == "主体":
+            n_main += 1
+        fc = str(p.get("form_class") or "")
+        if fc and fc not in valid_form:
+            errors.append("%s.form_class=%s 不在 %s" % (tag, fc, ",".join(sorted(valid_form))))
+        if str(p.get("confidence") or "").lower() not in valid_conf and p.get("confidence"):
+            errors.append("%s.confidence=%s 不是 high/mid/low" % (tag, p["confidence"]))
+        feats = p.get("features")
+        if isinstance(feats, list):
+            for j, f in enumerate(feats):
+                if not isinstance(f, dict):
+                    errors.append("%s.features[%d] 不是对象" % (tag, j))
+                    continue
+                fk = str(f.get("kind") or "")
+                if fk and fk not in valid_feat:
+                    errors.append("%s.features[%d].kind=%s 不在 %s" % (tag, j, fk, ",".join(sorted(valid_feat))))
+                if not f.get("where"):
+                    warnings.append("%s.features[%d] 没写 where（位置）—— 至少要写部件+上中下" % (tag, j))
+    if n_main == 0:
+        warnings.append("没有任何 part 标 role=主体 —— 判定规则：占包络主要体量 的那件是主体")
+    if n_main > 1:
+        warnings.append("有 %d 件标了主体 —— 多体量可以并列，但要确认它们不是同一件的分块" % n_main)
+
+    mm_hits = _draft_scan_absolute(record)
+    if mm_hits:
+        errors.append("R1 违规：出现 mm/cm 级绝对值 %s —— S0 只收量级档 A–F 或相对比例（如 0.3×）"
+                      % (", ".join(sorted(set(mm_hits))[:6])))
+
+    stats = {"parts": len(parts), "main": n_main,
+             "forms": sorted({str(p.get("form_class")) for p in parts if isinstance(p, dict) and p.get("form_class")}),
+             "feature_rows": sum(len(p.get("features") or []) for p in parts if isinstance(p, dict))}
+    return _j({"ok": not errors, "stage": DRAFT_STAGE, "fidelity": "draft",
+               "errors": errors, "warnings": warnings, "stats": stats,
+               "note": "ok=true 表示「草稿表填得合格、且没有把数据定死」；**不代表尺寸被验证过** —— "
+                       "数字一律等 S2 标定/S5 验收"})
+
+
 def shape_selftest():
     """自检：协议齐全（每类都有视图/比例/算子/验收/坑）+ 三条通路（量具/放样/旋转体）可用。"""
     import bpy
@@ -301,9 +587,24 @@ def shape_selftest():
         ev["plan_generic"] = {"ok": p.get("ok"), "steps": len(p.get("steps") or [])}
         rv = json.loads(shape_revolve(profile=[[0, 0], [30, 0], [30, 60], [20, 90], [0, 100]], name="__dsh_rv"))
         ev["revolve"] = {k: rv.get(k) for k in ("ok", "size_mm", "vertices", "error")}
+        # S0 草稿契约：模板要齐（四张表 + 规则 + 禁止项），且 check 必须"合法过 / 写 mm 被拒"
+        dr = json.loads(shape_draft("furniture"))
+        good = {"object": {"name": "样例", "class": "furniture", "size_class": "C",
+                           "size_ref": "怀抱", "confidence": "mid"},
+                "parts": [{"part": "座面", "role": "主体", "form_class": "plate", "evidence": "需求文字",
+                           "to_confirm": ["座面形状"], "confidence": "mid"}]}
+        bad = {"object": dict(good["object"]), "parts": [dict(good["parts"][0], rel="450mm")]}
+        ck_ok = json.loads(shape_draft_check(good))
+        ck_bad = json.loads(shape_draft_check(bad))
+        ev["draft"] = {"ok": dr.get("ok"), "tables": sorted((dr.get("tables") or {}).keys()),
+                       "rules": len(dr.get("rules") or []),
+                       "forbidden": len(dr.get("forbidden_ops_this_stage") or []),
+                       "check_good": ck_ok.get("ok"), "check_mm_rejected": ck_bad.get("ok") is False}
         ok = (not missing and not missing_path and len(DECISION) >= 4
               and p.get("ok") is True and rv.get("ok") is True
-              and abs((rv.get("size_mm") or {}).get("h", 0) - 100.0) < 1.0)
+              and abs((rv.get("size_mm") or {}).get("h", 0) - 100.0) < 1.0
+              and dr.get("ok") is True and len(dr.get("tables") or {}) == 4
+              and ck_ok.get("ok") is True and ck_bad.get("ok") is False)
         return _j({"ok": bool(ok), "evidence": ev})
     except Exception as e:
         return _j({"ok": False, "evidence": ev, "error": "%s: %s" % (type(e).__name__, str(e)[:220])})
@@ -323,11 +624,13 @@ def shape_help():
     return _j({
         "module": "shapegen.py", "version": SHAPE_VERSION,
         "what": "参考图**通用**还原方法层：类别协议 + 通用量具/放样/拟合/分件/旋转体",
-        "ops": ["shape_plan", "shape_sections", "shape_loft", "shape_fit", "shape_regions",
-                "shape_panels", "shape_revolve", "shape_selftest", "shape_help"],
+        "ops": ["shape_draft", "shape_draft_check", "shape_plan", "shape_sections", "shape_loft",
+                "shape_fit", "shape_regions", "shape_panels", "shape_revolve", "shape_selftest", "shape_help"],
         "steps": STEPS, "classes": sorted(CLASSES),
         "section_decision": DECISION, "section_path": SECTION_PATH,
         "why": "几何机制与类别无关：量轮廓 → 放样 → 特征线 → 验收；换类别只换协议（视图/比例/验收）",
+        "draft_stage": "第一步永远是 S0 草稿评估（shape_draft）：先出制作表格，**不量精确尺寸、不数 mesh、不写死数字**；"
+                       "尺寸只给 A–F 量级档，每件必带 evidence 与 to_confirm —— 图来了再逐行补数字",
         "applies_to": ["有明确外轮廓、能用正交视图描述的物体：车辆/人形/动物/家具/头盔/船体/飞机/枪械/道具"],
         "not_applies": ["没有外轮廓的（布料/毛发/流体/烟）", "靠内部结构定义的（多孔晶格/拓扑优化件）"],
         "rotational_note": "瓶/罐/轮毂/花瓶这类**轴对称**物体走 shape_revolve（母線旋转），不要用放样",
@@ -349,6 +652,7 @@ def shape_dispatch(op, args_json):
             kw[k] = v
     ops = {"plan": shape_plan, "sections": shape_sections, "loft": shape_loft, "fit": shape_fit,
            "regions": shape_regions, "panels": shape_panels, "revolve": shape_revolve,
+           "draft": shape_draft, "draft_check": shape_draft_check,
            "selftest": shape_selftest, "help": shape_help}
     fn = ops.get(str(op))
     if fn is None:
@@ -364,6 +668,7 @@ import sys as _sys
 _K = _sys.modules.get("dsh_rt_kernel")
 if _K is not None:
     _K.dsh_shape_api = _DshApi({"version": SHAPE_VERSION, "dispatch": shape_dispatch,
+                                "draft": shape_draft, "draft_check": shape_draft_check,
                                 "plan": shape_plan, "sections": shape_sections, "loft": shape_loft,
                                 "fit": shape_fit, "revolve": shape_revolve, "selftest": shape_selftest,
                                 "help": shape_help})

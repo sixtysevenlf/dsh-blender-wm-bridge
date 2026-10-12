@@ -1,4 +1,39 @@
-# CHANGELOG — @dsh-external/dsh-blender-plugin
+# CHANGELOG — @dsh-external/dsh-blender-wm-bridge
+
+## 未发布（v1.0.6 待定）—— S0 草稿评估：参考图还原的第一步改成「先出制作表格，不量尺寸」
+
+**动机（用户口径）**：建模的**评估**阶段一上来就量精确尺寸、统计 mesh 数量，等于在**还没有参考图**的时候
+把编出来的数字当成规格；而这一步本该只是"在脑子里打草稿"——认清是什么 / 大概多大 / 拆成几块 / 谁是主体谁是配件 /
+哪块硬表面哪块曲面 / 哪里镂空·凸起·凹陷，后续返回图片时再慢慢完善。
+
+### 新增 `shape_draft` / `shape_draft_check`（shape 族，只读）
+
+- **`shape_draft(object_class=?)`**：返回**制作表格的字段契约 + 可填骨架**，**不返回任何测量值**。四张表：
+  T1 识别与量级（是什么 / 归哪类 / 量级档 A–F / 对称 / 轴向）、T2 制作单元（每件：role 主体·配件·重复件 /
+  parent / form_class / features / build_path / evidence / to_confirm）、T3 形态（faceted·smooth·organic·
+  rotational·plate·repeats·sweep）、T4 空间特征（镂空·凸起·凹陷·缝·薄壁·格栅）。
+  给了 `object_class` 就附带该类的**关注项名字**（要盯哪些比例 / 走哪条 `section_path`），**不含数字**。
+- **三条硬规则（机检）**：R1 不量精确尺寸（尺寸只能是量级档或 `0.3×` 这类相对比例，出现 mm/cm 即拒收）；
+  R2 不数 mesh（列出本阶段禁止调用的 `audit_scene`/`audit_mesh`/`print_report`/`shape_sections`… 清单）；
+  R3 不定死（每字段带 `confidence` + `source`，判不出写 `unknown`，每件必带 `to_confirm`）。
+- **`shape_draft_check(record=…)`**：把填好的表格机械校验（字段齐不齐 / 枚举对不对 / 主体是否为 0 或 >1 /
+  **有没有偷偷写 mm 级绝对值**），返回 `errors` / `warnings` / `stats`。`ok=true` 只表示"表格合格且没把数据定死"，
+  **不代表尺寸被验证过** —— 数字一律等 S2 标定 / S5 验收。
+- **迭代路径**随回执给出：S0 草稿（无图）→ S1 `img_scan`（像素 ≠ 毫米）→ S2 `img_rectify` 标定（第一次有数字）
+  → S3 站表/截面 → S4 出图对照 → S5 验收（**这一步才**数面数、量间隙）。
+
+### 指引同步（`catalog` / `classes` / 技能文档）
+
+- `catalog` 的 shape 族：`when` 改成「**先 S0 草稿** → `shape_plan` → 放样→特征线→IoU」，`not` 加
+  「**S0 别写 mm、别调 `audit_*` 数面数**」；ops 加 `draft` / `draft_check`（默认页长度门仍通过）。
+- `classes.mjs` 的 `recon` 类：`entry` 改为 `shape_draft`（第一步），chain 前置 `shape_draft → shape_draft_check`，
+  验收门分 S0 / S3 两段；`renderHandoff()` 硬规则 1 同步。
+- 技能侧：`references/参考图通用还原SOP.md` 由「八步」改为「**九步**」（新增 ⓪ 草稿评估 + §1.1 四张表 +
+  §5 草稿→数字的迭代纪律）；`SKILL.md` 新增 §0.5.0「冻结规格之前先打草稿」，并改 §0.7 决策树与四条硬规则第 1 条。
+- 计数：`28 family / 184 → 186 op`（`src/index.ts` 描述与工作区 `AGENTS.md` 经 `scripts/sync_counts.mjs` 刷新；
+  `capability.lock.json` 与 `tests/plan_readonly.baseline.json` 同步更新）。
+- `SHAPE_VERSION` 1 → 2；`shape_selftest` 增补 S0 断言（模板四表齐全 + 合法 record 过 + 写 `450mm` 必须被拒）。
+- 自检：`npm test` 全绿（能力锁 / 单一事实源 / 可发现性 / 指引完整性 / 路由契约等）。
 
 ## v1.0.5（2026-10-07）—— issue #14：悬垂默认不再把「贴床底面」算成需要支撑（+ 两个各向异性缩放的旧账 + `npm test` 在 Windows 上跑不到一半）
 
@@ -65,8 +100,8 @@
 
 ### 修（issue #11，报告人 @mlfc666，Manjaro 原生 Linux）
 - **症状**：原生 Linux（Blender 与宿主同机）上 `blender_rt_see` 恒报 `Error: frame http 502`，`/frame.png` 回
-  `ENOENT … /home/<u>/.dsh-blender-rt/dsh_live_viewport.png`；而帧 PNG **确实写出来了**，只是落在一个
-  **字面量反斜杠目录** `/home/<u>/\wsl.localhost/Ubuntu/home/<u>/.dsh-blender-rt/` 里。旁证：`/doctor` 在 Manjaro 上把 `distro` 报成 `Ubuntu`。
+  `ENOENT … /home/<u>/.dsh-blender-wm-rt/dsh_live_viewport.png`；而帧 PNG **确实写出来了**，只是落在一个
+  **字面量反斜杠目录** `/home/<u>/\wsl.localhost/Ubuntu/home/<u>/.dsh-blender-wm-rt/` 里。旁证：`/doctor` 在 Manjaro 上把 `distro` 报成 `Ubuntu`。
 - **根因**：`runtime/config.mjs` 的 `wslToWin()` 只分了 `IS_MAC` / `IS_WIN`，**其余一律当成「Linux 宿主 ⇒ WSL +
   Windows 上的 Blender」**，把宿主绝对路径映射成 `\\wsl.localhost\<distro>\…`。同机的 Blender 会把这个串当
   **相对路径**，于是"Node 侧写、Blender 侧读"的文件交接全线错位（帧 / 无头脚本 / 台账 / results / trajectory /
@@ -81,9 +116,9 @@
 
   | 探针 | 修前 | 修后 |
   |---|---|---|
-  | `wslToWin('/home/u/.dsh-blender-rt')` | `\\wsl.localhost\Ubuntu\home\u\.dsh-blender-rt` | `/home/u/.dsh-blender-rt` |
-  | `CFG.workDirWin` | `\\wsl.localhost\Ubuntu\tmp\dsh-blender-rt` | `/tmp/dsh-blender-rt`（与 `workDirWsl` 同构） |
-  | `PATHS.livePngWin` | `\\wsl.localhost\Ubuntu\tmp\dsh-blender-rt/dsh_live_viewport.png` | `/tmp/dsh-blender-rt/dsh_live_viewport.png` |
+  | `wslToWin('/home/u/.dsh-blender-wm-rt')` | `\\wsl.localhost\Ubuntu\home\u\.dsh-blender-wm-rt` | `/home/u/.dsh-blender-wm-rt` |
+  | `CFG.workDirWin` | `\\wsl.localhost\Ubuntu\tmp\dsh-blender-wm-rt` | `/tmp/dsh-blender-wm-rt`（与 `workDirWsl` 同构） |
+  | `PATHS.livePngWin` | `\\wsl.localhost\Ubuntu\tmp\dsh-blender-wm-rt/dsh_live_viewport.png` | `/tmp/dsh-blender-wm-rt/dsh_live_viewport.png` |
   | `describeConfig().distro` | `Ubuntu` | `Ubuntu 24.04.4 LTS`（读 os-release） |
   | `PATH_GUARD` | 非空（假警告） | `''` |
 
@@ -238,7 +273,7 @@ S10 现场补丁原先只打在 `lib/index.js`（`src/index.ts` 里没有）：`
 
 ## v1.0.1+S10（2026-09-29）—— 僵死后端自愈（现场补丁，未随包发布）
 
-> 现场：9877 后端**事件循环被长时间同步操作占死** ⇒ `/health` 不应答（`ss` 见 `Recv-Q` 只涨、
+> 现场：9887 后端**事件循环被长时间同步操作占死** ⇒ `/health` 不应答（`ss` 见 `Recv-Q` 只涨、
 > 无人 accept）、**SIGTERM 处理函数永远排不上队**（信号排进队列但主线程不返回）、看护每 15 s
 > 重生一个实例却撞 `EADDRINUSE` 直接 `exit(1)` ⇒ **无限空转、永不自愈，只能人工 `kill -9`**。
 > 本次把它做成自愈，改 2 个文件、6 处；实测红绿对照见下。
@@ -258,7 +293,7 @@ S10 现场补丁原先只打在 `lib/index.js`（`src/index.ts` 里没有）：`
 - `killBackendByCmd(port, signal='SIGTERM')` 增加信号参数，默认值保持既有调用点行为不变。
 
 ### 修 3：两处"杀进程"都改成 **argv token 精确匹配**（自伤修复）
-- 原判据是**整条 cmdline 子串匹配**（`cmd.includes('server.mjs') && cmd.includes('--port 9877')`）。
+- 原判据是**整条 cmdline 子串匹配**（`cmd.includes('server.mjs') && cmd.includes('--port 9887')`）。
   实测自伤：调用方 `bash -c "... node runtime/server.mjs --port 9899 ..."` 的命令行同样含这两个串
   ⇒ 新版抢端口时把**调用方自己的 shell 一起 SIGKILL 掉**（本补丁首版即踩，被 A/B 测试当场抓出）。
 - 现在要求：**某个独立 argv 以 `/server.mjs` 结尾**（basename 精确）且其后紧跟 `--port <port>`，
@@ -313,7 +348,7 @@ S10 现场补丁原先只打在 `lib/index.js`（`src/index.ts` 里没有）：`
 ## v1.0.0（2026-09-28）—— 首个 1.0 发布：macOS 全 GUI 路径打通 + 对外能力冻结
 
 > **1.0 = 能力冻结线**：15 个模型侧工具 + `blender_rt_plan`（28 个 family / 183 个 op）是对外稳定面；
-> 包版本（`package.json`）、工具描述前缀（`[v1.0.0] …`）、npm 包名 `@dsh-external/dsh-blender-plugin` 三者一致。
+> 包版本（`package.json`）、工具描述前缀（`[v1.0.0] …`）、npm 包名 `@dsh-external/dsh-blender-wm-bridge` 三者一致。
 > 相对 v0.9.6 的**功能增量只有一项**：macOS 支持（见下）；其余为既有能力收口 + README（中英）重写为「只写 1.0 现状」，
 > 不再按版本号罗列历史 —— 历史留在本文件里。
 >
@@ -330,7 +365,7 @@ Windows / WSL 行为不变（有回归断言兜底）。
 
 - `runtime/config.mjs`：`IS_MAC`；`winToWsl` / `wslToWin` 在 mac 上早退返回原值；
   `detectBlenderExe()` 增扫 `.app` bundle（`/Applications`、`~/Applications`、`/Volumes/*/Applications`，
-  支持任意版本名 `Blender*.app`）；`resolveWorkDir()` 改用 `~/.dsh-blender-rt`
+  支持任意版本名 `Blender*.app`）；`resolveWorkDir()` 改用 `~/.dsh-blender-wm-rt`
   （**不落系统临时目录** —— 那里会被清理，帧与台账会丢）；`winLocalAppData()` 不再尝试调 `cmd.exe`。
 - `runtime/engine.mjs`：`blenderJoin()` 收编原先散落的 `path.win32.join`（mac 上会产出 `\Users\...`）；
   `withWslEnv()` 同 OS 时直接返回（不再往子进程塞 `WSLENV`）；注入 Blender 的 python 路径助手
@@ -359,7 +394,7 @@ Windows / WSL 行为不变（有回归断言兜底）。
 GUI 通道（`npm run test:gui`，需真机 + addon）—— **11/11 通过**：
 
 - `blender_viewport op=doctor` / `op=status`：通道健康，读出真实 3D 视口 region；
-- `blender_rt_see`：离屏取帧 148ms，合法 RGBA PNG，写入 `~/.dsh-blender-rt`；
+- `blender_rt_see`：离屏取帧 148ms，合法 RGBA PNG，写入 `~/.dsh-blender-wm-rt`；
 - `blender_rt_see {from, look_at}`：自定义视角 178ms，覆盖 26.8%，**用户视口未被改动**；
 - `blender_rt_do`：改写场景 + 读回验证通过；持久内核 `K` 跨调用保留；
 - `blender_rt_cmd` / `blender_rt_commands` / `blender_rt_perf` / `blender_rt_opt` 均正常；
@@ -422,7 +457,7 @@ GUI 通道（`npm run test:gui`，需真机 + addon）—— **11/11 通过**：
   @@mcp-for-blender-2.1.0@@ 的 @@src/blender_mcp/bundled/addon.py@@（sha 校验一致）。
 - **回退点**（两份，md5 已对拍 @@50dfd58290e5eb34c2a2fd9fae3f6f23@@）：
   同目录 @@blender_mcp.py.v16.bak@@ 与 @@dsh-blender-plugin/tmp/backup/blender_mcp_v16.py@@。
-- **重启**：@@Stop-Process blender -Force@@ → @@blender_viewport(op="launch")@@（5.7 s 起监听 9876、doctor 随即健康）。
+- **重启**：@@Stop-Process blender -Force@@ → @@blender_viewport(op="launch")@@（5.7 s 起监听 9886、doctor 随即健康）。
   ⚠ 升级后必须**完全重启 Blender**（脚本 reload 会留下旧 socket 线程），与上游说明一致。
 - **新增能力（实测）**：@@get_addon_info@@ 回 @@addon_version":[1,7],"protocol_version":11@@、capabilities 9 → 11 条；
   @@rt_commands@@ 可用命令 15 → **19** 条（新增 @@describe_node_type@@ / @@bpy_api_lookup@@ / @@export_scene@@ / @@get_tripo_status@@，
@@ -498,7 +533,7 @@ GUI 通道（`npm run test:gui`，需真机 + addon）—— **11/11 通过**：
 
 | # | 现场问题 | 本批改动 | 验证 |
 |---|---|---|---|
-| ① | `/mnt/d` 变只读 ⇒ 后端写不了 status/ledger 起不来；报错只说"看后端日志"；9877 被僵死进程占着(EADDRINUSE) | `config.mjs` 新增 **workDir 探写 + 回退**（原候选 → 包内 `tmp` → OS tmpdir，**回退必留痕** `CFG.workDirFallback{requested,why,used,errs}`）；`server.mjs` 加 `EADDRINUSE` 明确文案（明说"僵死后端占端口"+ 处置）并落盘 `backend-listen-error.txt` | 模拟不可写：`DSH_BLENDER_WORKDIR=/etc/hostname/nope` ⇒ 自动回退到 `dsh-blender-plugin/tmp`、`writable=true`、`why=ENOTDIR…` ✅ |
+| ① | `/mnt/d` 变只读 ⇒ 后端写不了 status/ledger 起不来；报错只说"看后端日志"；9887 被僵死进程占着(EADDRINUSE) | `config.mjs` 新增 **workDir 探写 + 回退**（原候选 → 包内 `tmp` → OS tmpdir，**回退必留痕** `CFG.workDirFallback{requested,why,used,errs}`）；`server.mjs` 加 `EADDRINUSE` 明确文案（明说"僵死后端占端口"+ 处置）并落盘 `backend-listen-error.txt` | 模拟不可写：`DSH_BLENDER_WM_WORKDIR=/etc/hostname/nope` ⇒ 自动回退到 `dsh-blender-plugin/tmp`、`writable=true`、`why=ENOTDIR…` ✅ |
 | ② | 后端一挂 headless/job/do 全废；没有官方离线通道（用户手搓 15 行恢复能力） | 新增 **`runtime/offline_bootstrap.py`**：建 `dsh_rt_kernel` → 注入 kit → 按名加载模块，`kapi(name)` 取 API；支持 `blender -b --python … -- vehicle audit` 与脚本内 `ob.boot([...])`（契约与在线路径一致） | 真机：`blender -b --factory-startup --python runtime/offline_bootstrap.py -- vehicle audit` ⇒ **`OFFLINE_BOOTSTRAP ok · 已加载：audit, vehicle`** ✅ |
 | ③ | `K` 在 import 进来的 `lib/*.py` 里不可见（推荐用法与实现冲突） | `kit.py` 新增 **`kapi(name)`** 与 **`install_kernel(ns=None)`**；文档给官方一行式 `import sys; K = sys.modules["dsh_rt_kernel"]` | 离线路径已实测 `kapi("generator")` → `Api` ✅ |
 | ④ | preload 模块名靠猜 | `kapi` 报错列已加载模块；engine 的 `preload 找不到模块` 报错**列全部可用模块名**并给 `preload="vehicle,audit"` 示例 + 指向离线逃生口 | 语法/单测通过 ✅ |
@@ -530,7 +565,7 @@ GUI 通道（`npm run test:gui`，需真机 + addon）—— **11/11 通过**：
 
 ```
 dry_run   → LAUNCH ok · 给出 blender.exe 路径 + boot 脚本路径（不再抛错）
-真实 launch → LAUNCH ok · 已 spawn pid=2607071 · addon 端口 9876 已监听（5689ms）
+真实 launch → LAUNCH ok · 已 spawn pid=2607071 · addon 端口 9886 已监听（5689ms）
 doctor    → ok
 ```
 （顺带把用户当时已退出的 Blender 拉回来了。）
@@ -563,7 +598,7 @@ npm test > /tmp/nt.log 2>&1; echo "exit=$?"     # exit=0 才算绿
 ### D27 · 修 bug：`blender_viewport op=start` 信陈旧句柄，端口没监听也回"已在跑"
 
 **现象（现场两次）**：
-- ① `op=start` 回「后端已启动（already-spawned）」→ 紧接着 `doctor` 失败、`curl /doctor` 4 s 超时：**9877 根本没有监听**；
+- ① `op=start` 回「后端已启动（already-spawned）」→ 紧接着 `doctor` 失败、`curl /doctor` 4 s 超时：**9887 根本没有监听**；
 - ② 另一次真拉起来了，却因为等待窗口太短回「启动失败：spawned pid=…」。
 
 **根因**：`startBackend()` 只看子进程句柄 `childAlive()`（exitCode/signalCode/pid），**从不探端口**；等待用「睡 20×300 ms 后探一次」。
@@ -1144,7 +1179,7 @@ AGENTS 3.7k ≈ **23–29k tokens**，而且**每轮重付**；真正的门调�
   显式 `diagnostics=true` 可强制每次都跑。顺手修掉渲染兜底分支里**连着调两次** `_scene_bbox()` 的浪费。
 - **实测收益**：560×315 从 **146.3 → 88.6 ms**；1120×630 从 **301.3 → 179.4 ms**；强制诊断路径不变（161 ms，语义与 v0.9.1 一致）。
 - **回归**：`tests/view_diag_selftest.py` 新增 5 项断言（不变量 = "跑了诊断 ⟺ 显式要求 or 字节数 < 阈值"），
-  21/21 全绿；`npm run test:diag` 把"怎么跑"固化成命令（需要后端 9877；会按 `DSH_LEASE_HOLDER`/ `GET /who` 找 holder，**不 force 抢租约**）。`VIEW_VERSION` 2 → 3。
+  21/21 全绿；`npm run test:diag` 把"怎么跑"固化成命令（需要后端 9887；会按 `DSH_LEASE_HOLDER`/ `GET /who` 找 holder，**不 force 抢租约**）。`VIEW_VERSION` 2 → 3。
 
 ### P0-2 · 帧去重：同一画面不重复附图（省的是模型侧 token）
 
@@ -1228,7 +1263,7 @@ AGENTS 3.7k ≈ **23–29k tokens**，而且**每轮重付**；真正的门调�
 - 落地为 **`blender_viewport(op="launch")`**（不新增第 16 个工具面：`doctor` / `blender-unreachable` 的修法直接指向它）。
 - 语义：写 boot 脚本（GUI 里 `addon_utils.enable` 名字带 mcp 的模块；不行就 `importlib` 直接载入
   `$BLENDER_USER_SCRIPTS/addons/*mcp*.py` + `register()`）→ detached `spawn blender.exe` →
-  **轮询 9876**（唯一可信判据）→ 端口开了顺手 doctor。
+  **轮询 9886**（唯一可信判据）→ 端口开了顺手 doctor。
 - **幂等**（已在监听回 `already:true`，不堆第二个 Blender）· `dry_run` · `exe` / `addon_module` / `addon_file` 可覆盖 ·
   boot 结论落盘 `launch-status.json`（GUI 进程 stdout 拿不到）· 回执给 `bootScript` 可手工复跑。
 - **自检抓到的真 bug**：`spawn` 不存在的 exe **不抛**而是异步 emit `'error'` → 不挂 handler 会把
@@ -1275,7 +1310,7 @@ AGENTS 3.7k ≈ **23–29k tokens**，而且**每轮重付**；真正的门调�
 并逐条补上 §8 的验收测试（`tests/acceptance_v093.mjs`，62 条断言 / 真机 Blender 5.2.2）。
 
 ### 路线决定（§5）：**headless 批处理 = 第一路径**，直连 GUI = 交互式增益
-- 证据：7/7 协作者全程 headless、9876 addon 从未 Connect、`rt_do/rt_see/rt_watch/rt_cmd` 0 调用；
+- 证据：7/7 协作者全程 headless、9886 addon 从未 Connect、`rt_do/rt_see/rt_watch/rt_cmd` 0 调用；
   而 `audit_*/qc_*/deliver_*` 本来就能在 headless 直调（`preload=` 通道），只是描述里没写。
 - 落地：见 `docs/headless优先-路线决定.md`（含 17 行 op→preload 对照表 + 5 段 copy-paste + 任务模板）；
   工具描述改写（`blender_rt_headless` 明写「第一路径」、`preload` 明写 audit/qc/deliver 可直调）。
@@ -1607,7 +1642,7 @@ AGENTS 3.7k ≈ **23–29k tokens**，而且**每轮重付**；真正的门调�
 - 顺带：路径常量注入 `K.runtime_dir`（qc.py 据此现场加载同目录模块）；`bpy.types.Camera.calc_matrix_camera` 在 Blender 5.2 已移除，
   改用 `bpy_extras.object_utils.world_to_camera_view` 作投影真值对拍。
 
-**实测（`D:/DSH/blender/out/preserve_scene_before_orca.blend` / 350 个可见 mesh / 512×512 / 64 采样 / EEVEE+RT）**：
+**实测（`D:/DSH/blender-wm/out/preserve_scene_before_orca.blend` / 350 个可见 mesh / 512×512 / 64 采样 / EEVEE+RT）**：
 
 | 视角 | 渲染 ms | bytes | 出图 alpha bbox | 画面 margin（px） |
 |---|---|---|---|---|
@@ -1795,11 +1830,11 @@ engine.act 在 v0.7.0 改成返回结构化对象（stdout/stderr/error/tracebac
 > 新增 `addonProtocol` 配置项，默认 `auto`。**不改变既有行为**：仍然是扁平协议优先，装官方 addon 的机器零配置。
 
 - **新增 `runtime/addon-protocol.mjs`**：把两种 addon 的差异（分帧方式 / 命令词汇 / 应答封套）收敛成协议描述符，`AddonClient` 与 `freshPing` 共用同一套 `plan / encode / decode`。
-- **新增配置 `addonProtocol`**（`auto` / `ahujasid` / `category-action`，等价环境变量 `DSH_BLENDER_ADDON_PROTOCOL`）：`auto` 首次使用时探测一次并缓存 —— 先发**不带换行**的扁平 ping（只有扁平 addon 会回），没回再发带换行的 category/action ping，并按回包封套形状纠错（避免 addon 偶尔忙一下把协议判错）。
+- **新增配置 `addonProtocol`**（`auto` / `ahujasid` / `category-action`，等价环境变量 `DSH_BLENDER_WM_ADDON_PROTOCOL`）：`auto` 首次使用时探测一次并缓存 —— 先发**不带换行**的扁平 ping（只有扁平 addon 会回），没回再发带换行的 category/action ping，并按回包封套形状纠错（避免 addon 偶尔忙一下把协议判错）。
 - **诊断升级**：`/doctor` 输出 `protocol` / `protocol_label` / `protocol_from`；原先"端口通但 ping 不回"一律归为 `addon-thread-stuck`，现在会再探一次协议，确属协议不匹配时给出 `detected_protocol` 与「把 `addonProtocol` 改成 X」的修法；`diagnose()` 的面板提示也随协议变化。
 - **category-action 侧适配**：`execute_code → utility.execute_python`（回包重新包成 `{executed,result}`，否则 `/act` 的 stdout 与 `LOOP` 标记解析全空）、`get_viewport_screenshot` / `get_world_state_snapshot` 由插件侧生成 python（对面同名 handler 的参数与 Blender 4 老 API 都不兼容）、遥测类命令走本地桩、5 条资产集成明确报错。
 - **新增自检 `tests/protocol_selftest.mjs`**（`npm test`）：两个 mock addon 覆盖探测 / 解析 / 两种协议下的调用 / 错误传播 / 缺能力不假装成功，共 28 项断言，**不需要 Blender**。
-- 文档：`docs/配置参考.md` §6 新增「两种 addon 协议」小节；`README.md` 与 `README.zh-CN.md` 的前置条件、故障表各补一行；`dsh-blender.config.example.json` 加 `addonProtocol`。
+- 文档：`docs/配置参考.md` §6 新增「两种 addon 协议」小节；`README.md` 与 `README.zh-CN.md` 的前置条件、故障表各补一行；`dsh-blender-wm.config.example.json` 加 `addonProtocol`。
 
 ## v0.4.0（2026-09-13，本会话）—— 三批次增强：诊断 / 自定义视角 / 租约 / 无头进程
 
@@ -1807,7 +1842,7 @@ engine.act 在 v0.7.0 改成返回结构化对象（stdout/stderr/error/tracebac
 
 **① 可观测性（诊断）**
 - 工具报错不再只有 `connect timeout`：超时/连不上时自动三级判定并给出人话原因（`kind` + `summary` + `fix`）：
-  - TCP 不通 → `blender-unreachable`（Blender 没跑 / addon 没监听 9876）
+  - TCP 不通 → `blender-unreachable`（Blender 没跑 / addon 没监听 9886）
   - TCP 通 + `ping` 通 → `main-thread-busy`（主线程被占：渲染/模态操作）
   - TCP 通 + `ping` 不通 → `addon-thread-stuck`（addon 客户端线程卡住）
 - 新增 `GET /doctor` + `blender_viewport {op:"doctor"}`：**真跑一次 bpy 往返**（`status`）通了才报 `ok`（实测往返 97 ms / ping 50 ms），不通才落到上面的三级判定。
@@ -1825,12 +1860,12 @@ engine.act 在 v0.7.0 改成返回结构化对象（stdout/stderr/error/tracebac
 **③ 写通道租约（`/lease` `/release` `/who` + `{op:"lease|release|who"}`）**
 - 语义：**无租约时零阻力**；有租约时别的会话的写路由（`/act /cmd /loop /perf /opt /headless`）返回 `409 {error:"leased", holder, expiresInMs, hint}`；`force:true` 抢占；`renewOnly:true` 只续期不抢。
 - **只读 op 豁免**：`perf status/help`、`loop status/board/help`、`opt analyze`（看现状不该被挡）。
-- 插件自动带 `holder`（`plugin-pid-<pid>`，`DSH_BLENDER_HOLDER` 可覆盖）；15 s 看护仅在**本来就持有**时心跳续期。
+- 插件自动带 `holder`（`plugin-pid-<pid>`，`DSH_BLENDER_WM_HOLDER` 可覆盖）；15 s 看护仅在**本来就持有**时心跳续期。
 - 实测 9 条路径：别人持有→409 · 无 holder→409 · force 抢占并写成功 · who 显示 holder/TTL/续期 · 自己心跳续期 · 别人心跳不抢 · release 后可写。
 
 **④ 独立渲染进程（新工具 `blender_rt_headless`）**
 - WSL 侧 `spawn` Windows 的 `blender.exe -b`（binfmt 互操作），stdout/stderr 直连回传；`file` 收 WSL 路径（`/mnt/d/...` 自动映射 `D:\\...`）或 Windows 路径（内部路径→UNC）。
-- 默认 `--factory-startup`（快、**不抢 9876 端口**）；`file / outdir / args / timeout_ms / factory_startup / bootstrap` 可控；`print("HEADLESS {json}")` 解析成 `result`；`outdir` 新文件按时间列出；超时 SIGKILL。
+- 默认 `--factory-startup`（快、**不抢 9886 端口**）；`file / outdir / args / timeout_ms / factory_startup / bootstrap` 可控；`print("HEADLESS {json}")` 解析成 `result`；`outdir` 新文件按时间列出；超时 SIGKILL。
 - `preload:"view,perf"` 把 `runtime/*.py` 源码拼到脚本开头 → 无头进程也能用 `K.dsh_view_api` / `K.dsh_perf_api`。
 - 实测：建 3 方块场景 + view.py 自检 + 出 2 张自定义视角图 = **2.66 s**；打开 1821 对象的 `FISTONE_v3.9_S5_master_delivery.blend` 读设置 = **1.24 s**。
 
@@ -1841,7 +1876,7 @@ engine.act 在 v0.7.0 改成返回结构化对象（stdout/stderr/error/tracebac
 
 ## v0.3.0（2026-09-13）—— 独立成包
 
-- 包名 `@dsh-external/dsh-blender-viewport` → **`@dsh-external/dsh-blender-plugin`**；目录 `plugins/dsh-blender-viewport/` → **`dsh-blender-plugin/`**（自带 `runtime/`，路径全相对）。
+- 包名 `@dsh-external/dsh-blender-viewport` → **`@dsh-external/dsh-blender-wm-bridge`**；目录 `plugins/dsh-blender-viewport/` → **`dsh-blender-plugin/`**（自带 `runtime/`，路径全相对）。
 - 新增 `blender_rt_perf`（渲染性能诊断/预设/还原）与 `blender_rt_opt`（对象精简：合并候选/安全合并）。
 - 后端 15 s 看护（掉线自动拉起）；`blender_viewport op=restart`。
 

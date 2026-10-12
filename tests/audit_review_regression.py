@@ -18,7 +18,7 @@
 跑法（无头 + factory-startup；绝不能拿 GUI 场景跑，因为要临时建对象）：
     blender_rt_headless(preload="audit,calib,gate,printcheck", engine="none", factory_startup=True,
         timeout_ms=300000, outdir="/home/sixtyseven67/DSH/blender-review-probes/audit",
-        script_file="/home/sixtyseven67/DSH/dsh-blender-plugin/tests/audit_review_regression.py")
+        script_file="/home/sixtyseven67/DSH/测试/测试/blender-wm-bridge/tests/audit_review_regression.py")
     # 或： blender -b --factory-startup --python tests/audit_review_regression.py
 
 判据全部是**数值/状态断言**（不靠肉眼）：健康必须 pass、反向分离壳必须 fail、合法空腔必须 pass、

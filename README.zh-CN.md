@@ -35,7 +35,7 @@
 
 ## v1.0 亮点（What's new in v1.0）
 
-**1.0 = 能力冻结线**：15 个模型侧工具 + `blender_rt_plan` 的 28 个 family / 183 个 op 是对外稳定面；包版本（`package.json` 的 `1.0.0`）、工具描述前缀（`[v1.0.0] …`）与 npm 包名三者一致。相对上一版，**功能增量只有 macOS 支持**：跨 OS 路径改写退化为恒等（`/Users/…` 不再被拼成 UNC），`/Applications` 下的 `Blender*.app` 自动探测，工作目录默认 `~/.dsh-blender-rt`。
+**1.0 = 能力冻结线**：15 个模型侧工具 + `blender_rt_plan` 的 28 个 family / 183 个 op 是对外稳定面；包版本（`package.json` 的 `1.0.0`）、工具描述前缀（`[v1.0.0] …`）与 npm 包名三者一致。相对上一版，**功能增量只有 macOS 支持**：跨 OS 路径改写退化为恒等（`/Users/…` 不再被拼成 UNC），`/Applications` 下的 `Blender*.app` 自动探测，工作目录默认 `~/.dsh-blender-wm-rt`。
 
 这一版对外承诺的能力面（正文逐条展开）：
 
@@ -72,14 +72,14 @@
 ## 2. 前置条件（Requirements，5 条，缺一不可）
 
 1. **Blender 4.x / 5.x（GUI 模式）** —— 本通道要的是"能看见的 Blender"；后台 `-b` 只用于无头工具那条线。
-2. **Blender 里的 addon：`MCP for Blender`**（**不在本包内**，需自备）：它在 Blender 内起一个 TCP 服务，默认监听 `127.0.0.1:9876`；命令面实测 34 条（19 常驻 + 15 集成门控），至少提供 `ping`、`get_scene_info`、`get_world_state_snapshot`、`get_object_info(name)`、`get_viewport_screenshot(max_size, filepath, format)`、`execute_code(code)`；另有 5 个可选集成（PolyHaven / Hyper3D / Sketchfab / Poly Pizza / Hunyuan3D），开关由 addon 自己的 scene 属性控制。
+2. **Blender 里的 addon：`MCP for Blender`**（**不在本包内**，需自备）：它在 Blender 内起一个 TCP 服务，默认监听 `127.0.0.1:9886`；命令面实测 34 条（19 常驻 + 15 集成门控），至少提供 `ping`、`get_scene_info`、`get_world_state_snapshot`、`get_object_info(name)`、`get_viewport_screenshot(max_size, filepath, format)`、`execute_code(code)`；另有 5 个可选集成（PolyHaven / Hyper3D / Sketchfab / Poly Pizza / Hunyuan3D），开关由 addon 自己的 scene 属性控制。
    - **也支持 harveyxiacn 增强版 `blender_mcp_addon`**（协议不同，插件侧自动适配，配置项 `addonProtocol`，默认 `auto`；见 `docs/配置参考.md` §6）。该实现没有上面那 5 条资产集成通道，相关命令会明确报错。
    - 装好后：3D 视图按 `N` → 找到「MCP for Blender」面板 → **Connect**；兼容性自检 `node runtime/_probe_tools.mjs`（逐条探测命令，输出 ok / 耗时）；协议自检 `node tests/protocol_selftest.mjs`（不需要 Blender）。
 3. **Node.js ≥ 20**（跑后端与插件宿主）。
 4. **DSH（DeepSeek Harness）**：本包以 DSH 插件形态提供工具（`inject: ['tools']`），并按 `dsh.bundle` 约定声明装配（`cordis.patch.yml`）。
    - WSL 里跑 DSH、Blender 在 Windows：需要 WSL 互操作开启（默认开），`spawn` 才能直接起 `blender.exe`；两者同在 Windows：把 `blenderExe` 配成 `D:\...\blender.exe` 即可，路径映射自动退化。
-   - **原生 Linux（非 WSL，Blender 与宿主同机）** —— v1.0.4 起支持。同机同 OS ⇒ 跨 OS 路径改写**不参与**（`/home/…` 原样交给 Blender），`blender_viewport op=doctor` 的 `distro` 报的是你自己的发行版；Blender 走 `which blender` 兜底，装在别处就配 `DSH_BLENDER_EXE`；工作目录默认 `os.tmpdir()/dsh-blender-rt`（见 `docs/配置参考.md` §5）。
-5. **macOS** —— 已支持。宿主与 Blender 同机，不涉及跨 OS 路径映射：Blender 自动探测 `/Applications` 下的 `Blender*.app`（也扫 `~/Applications` 与 `/Volumes/*/Applications`），工作目录默认 `~/.dsh-blender-rt`。只有装在非标准位置时才需要配 `DSH_BLENDER_EXE` / `blenderExe`；`blender_viewport op=doctor` 会打印探测结果。
+   - **原生 Linux（非 WSL，Blender 与宿主同机）** —— v1.0.4 起支持。同机同 OS ⇒ 跨 OS 路径改写**不参与**（`/home/…` 原样交给 Blender），`blender_viewport op=doctor` 的 `distro` 报的是你自己的发行版；Blender 走 `which blender` 兜底，装在别处就配 `DSH_BLENDER_WM_EXE`；工作目录默认 `os.tmpdir()/dsh-blender-wm-rt`（见 `docs/配置参考.md` §5）。
+5. **macOS** —— 已支持。宿主与 Blender 同机，不涉及跨 OS 路径映射：Blender 自动探测 `/Applications` 下的 `Blender*.app`（也扫 `~/Applications` 与 `/Volumes/*/Applications`），工作目录默认 `~/.dsh-blender-wm-rt`。只有装在非标准位置时才需要配 `DSH_BLENDER_WM_EXE` / `blenderExe`；`blender_viewport op=doctor` 会打印探测结果。
 
 ---
 
@@ -87,29 +87,29 @@
 
 ```bash
 # ① 构建（需要指向一个 DSH 源码 checkout，用于链接 cordis/schemastery/dsh-tools）
-cd dsh-blender-plugin
+cd blender-wm-bridge
 DSH_CHECKOUT=/path/to/dsh-harness bash scripts/build.sh          # 产出 lib/
 
 # ② 配置（不设也能靠自动探测跑；要改就复制样例）
-cp dsh-blender.config.example.json dsh-blender.config.json        # 见 docs/配置参考.md
+cp dsh-blender-wm.config.example.json dsh-blender-wm.config.json        # 见 docs/配置参考.md
 
 # ③ 装到 DSH（本包已声明 dsh.bundle → 走官方 bundle 装配）
-#    a) 软链进 <profile>/node_modules/@dsh-external/dsh-blender-plugin
+#    a) 软链进 <profile>/node_modules/@dsh-external/dsh-blender-wm-bridge
 #    b) profile package.json：dependencies 加 "link:<本目录绝对路径>"，
-#       dsh.profile.bundles 加 "@dsh-external/dsh-blender-plugin"
+#       dsh.profile.bundles 加 "@dsh-external/dsh-blender-wm-bridge"
 #    c) 预演：dsh --profile <profile> --dump-config → 重启 DSH
 
 # ④ 启动 Blender + Connect addon —— 两条路：
-#    agent / 无人值守：blender_viewport(op="launch")   ← 写 boot 脚本 + spawn + 轮询 9876，幂等
+#    agent / 无人值守：blender_viewport(op="launch")   ← 写 boot 脚本 + spawn + 轮询 9886，幂等
 #    人工：启动 Blender → 按 N →「MCP for Blender」→ Connect
 
 # ⑤ 验证 —— **唯一验收判据：doctor 回 `kind=ok`**（没到 = 没装好，按 §8 排查）
-curl -sS http://127.0.0.1:9877/health      # 后端活着 + 加载版本自证（provenance）
-curl -sS http://127.0.0.1:9877/doctor      # ⭐ 真跑一次 bpy 往返 + 打印生效配置
-curl -sS http://127.0.0.1:9877/who         # 租约 + 通道指标 + config
+curl -sS http://127.0.0.1:9887/health      # 后端活着 + 加载版本自证（provenance）
+curl -sS http://127.0.0.1:9887/doctor      # ⭐ 真跑一次 bpy 往返 + 打印生效配置
+curl -sS http://127.0.0.1:9887/who         # 租约 + 通道指标 + config
 ```
 
-插件加载时会自动拉起后端（`node runtime/server.mjs`，默认 `127.0.0.1:9877`）并带 **15 秒看护**：进程被杀 / 宿主重启会自动拉起；`blender_viewport op=stop` 会暂停看护。
+插件加载时会自动拉起后端（`node runtime/server.mjs`，默认 `127.0.0.1:9887`）并带 **15 秒看护**：进程被杀 / 宿主重启会自动拉起；`blender_viewport op=stop` 会暂停看护。
 
 > ⚠ 插件是 **DSH 启动时加载**的模块：**升级后要重启 DSH** 才会在当前会话生效；只改了后端才用 `blender_viewport op=restart`。
 
@@ -205,7 +205,7 @@ blender_rt_see(from="9,-9,6", look_at="0,0,1")               # ③ 换个角度�
 
 ### 通道语义（15 个工具共用）
 
-- **只有一条 TCP 直连通道**：后端 `127.0.0.1:9877` → addon socket `127.0.0.1:9876`；插件加载时自动拉起后端并带 15 秒看护。
+- **只有一条 TCP 直连通道**：后端 `127.0.0.1:9887` → addon socket `127.0.0.1:9886`；插件加载时自动拉起后端并带 15 秒看护。
 - **持久内核 `K`**：`execute_code` 每次是新命名空间，状态要挂在 `K` 上（`sys.modules["dsh_rt_kernel"]`）。路径助手 `K.win_path / K.wsl_path / K.blend_path / K.out_dir`（GUI 与无头通用），另有 `K.run(path, reload_modules=True)`。
 - **回执两段式**（headless / job）：第 1 个 text block 是单行 JSON 信封（`status` / `resultJson` / `resultPath` / `stdoutTail` / `inputFile` / `shots` / `pathWarnings` …），第 2 个是人读摘要。
 - **超时 ≠ 失败**：客户端断开 / 宿主取消（`exec.signal`）都**不会**杀掉 Blender 侧的子进程，产物照旧落盘；长活按 `runId` / `jobId` 回收。
@@ -225,7 +225,7 @@ blender_rt_see(from="9,-9,6", look_at="0,0,1")               # ③ 换个角度�
 5. **对象精简** —— `blender_rt_opt(op="analyze")` 先看候选分组与预计节省 → `blender_rt_opt(op="join", args={dry_run:false, save_before:"D:/.../xxx_before_join.blend"})` 真合并（几何零损失）；合并前后对拍面数 / 顶点数。
 6. **无头成品渲染 / 批量出图** —— `blender_rt_headless(file=…, outdir=…, engine="cycles", timeout_ms=900000, as_job=True, preload="view,perf")`，再用 `blender_rt_job(op="wait", id="job-…", timeout_ms=600000)` 收结果；预期 >100 s 就别赌等待窗口。
 7. **事务 / 回滚** —— 拓扑类改动走文件级 `blender_rt_txn(op="snapshot", label="before_bool")` → 改 → `op="restore"`；只改一处再对比走对象级 `op="mark", objects="Cube"` → `op="revert"`（拓扑改动会被跳过并报告）。
-8. **从参考图到交付** —— 先 `blender_rt_plan(op="shape_plan", args={object_class:"furniture"})` 拿该类别的还原协议（要哪些视图 / 盯哪些比例 / 配哪些算子），再 `op="shape_sections"` → `op="shape_loft"` 放样成壳；验收 `op="qc_render_views", args={ref_path:…}` / `op="qc_compare"`（IoU / 剖面差）；交付 `op="uv_smart_project"` → `op="material_build"` → `op="material_bake"` → `op="deliver_export"` → `op="deliver_verify"`（OBJ/MTL + md5 清单）。
+8. **从参考图到交付** —— **第一步先 S0 草稿**：`op="shape_draft", args={object_class:"furniture"}` 拿「制作表格」的字段契约（是什么 / 量级档 A–F / 几块 / 主体配件 / 什么形 / 哪凸哪凹；**不出 mm、不数 mesh**）→ 填 `record` → `op="shape_draft_check", args={record:…}` 机械校验；**拿到参考图之后**再用 `op="shape_plan"` 拿该类别的还原协议（要哪些视图 / 盯哪些比例 / 配哪些算子），然后 `op="shape_sections"` → `op="shape_loft"` 放样成壳；验收 `op="qc_render_views", args={ref_path:…}` / `op="qc_compare"`（IoU / 剖面差）；交付 `op="uv_smart_project"` → `op="material_build"` → `op="material_bake"` → `op="deliver_export"` → `op="deliver_verify"`（OBJ/MTL + md5 清单）。
 
 ---
 
@@ -235,17 +235,17 @@ blender_rt_see(from="9,-9,6", look_at="0,0,1")               # ③ 换个角度�
 
 | 设置 | 环境变量 | 配置键 | 默认 |
 |---|---|---|---|
-| 工作目录（帧 / 脚本 / 台账 / results） | `DSH_BLENDER_WORKDIR` | `workDir` | `%LOCALAPPDATA%\dsh-blender-rt`（macOS `~/.dsh-blender-rt`；WSL 下映射成 `/mnt/c/…`） |
-| Blender 可执行文件 | `DSH_BLENDER_EXE` | `blenderExe` | 自动（Program Files / Steam / `/Applications` / `PATH`） |
-| addon 地址 / 端口 | `DSH_BLENDER_ADDON_HOST` / `DSH_BLENDER_ADDON_PORT` | `addonHost` / `addonPort` | `127.0.0.1` / `9876` |
-| addon 协议 | `DSH_BLENDER_ADDON_PROTOCOL` | `addonProtocol` | `auto`（可显式 `ahujasid` / `category-action`） |
-| 后端端口 | `DSH_BLENDER_HTTP_PORT` | `httpPort` | `9877` |
-| 写租约身份 / TTL | `DSH_BLENDER_HOLDER` / `DSH_BLENDER_LEASE_TTL_MS` | `holder` / `leaseTtlMs` | `plugin-pid-<pid>` / 600000 ms |
-| 热无头 worker 端口 | `DSH_BLENDER_WORKER_PORT` | `workerPort` | `9879` |
+| 工作目录（帧 / 脚本 / 台账 / results） | `DSH_BLENDER_WM_WORKDIR` | `workDir` | `%LOCALAPPDATA%\dsh-blender-wm-rt`（macOS `~/.dsh-blender-wm-rt`；WSL 下映射成 `/mnt/c/…`） |
+| Blender 可执行文件 | `DSH_BLENDER_WM_EXE` | `blenderExe` | 自动（Program Files / Steam / `/Applications` / `PATH`） |
+| addon 地址 / 端口 | `DSH_BLENDER_WM_ADDON_HOST` / `DSH_BLENDER_WM_ADDON_PORT` | `addonHost` / `addonPort` | `127.0.0.1` / `9886` |
+| addon 协议 | `DSH_BLENDER_WM_ADDON_PROTOCOL` | `addonProtocol` | `auto`（可显式 `ahujasid` / `category-action`） |
+| 后端端口 | `DSH_BLENDER_WM_HTTP_PORT` | `httpPort` | `9887` |
+| 写租约身份 / TTL | `DSH_BLENDER_WM_HOLDER` / `DSH_BLENDER_WM_LEASE_TTL_MS` | `holder` / `leaseTtlMs` | `plugin-pid-<pid>` / 600000 ms |
+| 热无头 worker 端口 | `DSH_BLENDER_WM_WORKER_PORT` | `workerPort` | `9879` |
 | 无头等待窗口 / 自动转作业阈值 | `DSH_HEADLESS_WAIT_MS` / `DSH_HEADLESS_AUTO_JOB_MS` | — | 100000 ms / 关闭 |
-| Blender 用户配置 / 脚本目录 | `DSH_BLENDER_USER_CONFIG` / `DSH_BLENDER_USER_SCRIPTS` | `blenderUserConfig` / `blenderUserScripts` | `null`（无头进程默认读不到用户偏好） |
+| Blender 用户配置 / 脚本目录 | `DSH_BLENDER_WM_USER_CONFIG` / `DSH_BLENDER_WM_USER_SCRIPTS` | `blenderUserConfig` / `blenderUserScripts` | `null`（无头进程默认读不到用户偏好） |
 
-配置文件位置：`$DSH_BLENDER_CONFIG` → `<包根>/dsh-blender.config.json` → `~/.dsh/dsh-blender.config.json`（样例见 `dsh-blender.config.example.json`）。随时查**生效**配置：`curl -sS http://127.0.0.1:9877/who`（看 `config` 段）或 `blender_viewport(op="doctor")`。完整说明：[docs/配置参考.md](docs/配置参考.md)。
+配置文件位置：`$DSH_BLENDER_WM_CONFIG` → `<包根>/dsh-blender-wm.config.json` → `~/.dsh/dsh-blender-wm.config.json`（样例见 `dsh-blender-wm.config.example.json`）。随时查**生效**配置：`curl -sS http://127.0.0.1:9887/who`（看 `config` 段）或 `blender_viewport(op="doctor")`。完整说明：[docs/配置参考.md](docs/配置参考.md)。
 
 > `/doctor` 里 `config.workDir.shared=false` 表示该目录 Windows 侧看不见（例如 `/tmp` 这类独立挂载）—— 无头脚本会被自动换到共享目录，并在回执里给 `WORKDIR_NOT_SHARED` 警告。
 
@@ -275,13 +275,13 @@ blender_rt_see(from="9,-9,6", look_at="0,0,1")               # ③ 换个角度�
 ## 9. 目录结构（Repository layout）
 
 ```text
-dsh-blender-plugin/
-├── package.json · cordis.patch.yml · dsh-blender.config.example.json   # 包定义 / bundle 装配 / 配置样例
+blender-wm-bridge/
+├── package.json · cordis.patch.yml · dsh-blender-wm.config.example.json   # 包定义 / bundle 装配 / 配置样例
 ├── tsconfig.json · scripts/build.sh   # 构建：链接 checkout 依赖 + tsc → lib/
 ├── src/index.ts                       # host：15 个工具 + 后端看护 + 租约 + 回执消毒
 ├── runtime/                           # 自带 runtime（node + python，包内路径全相对）
 │   ├── config.mjs · paths.mjs         # env → 配置文件 → 自动探测 → 默认；跨 OS 路径
-│   ├── engine.mjs · server.mjs        # 直连引擎（addon socket 客户端 + 路由）与后端 HTTP 9877
+│   ├── engine.mjs · server.mjs        # 直连引擎（addon socket 客户端 + 路由）与后端 HTTP 9887
 │   ├── catalog.mjs · classes.mjs      # op 目录（28 family · 183 op）与 12 类建模指引
 │   ├── kit.py                         # 共享内核：JSON / API 样板、单位、几何、度量、回执骨架
 │   ├── view.py · runner.py · perf.py  # 自定义视角捕获 · 内环 runner v2 · 渲染性能预设 + 对象精简

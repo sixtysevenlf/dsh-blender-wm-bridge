@@ -32,6 +32,9 @@ export function blenderJoin(...parts) {
 }
 /** 共享内核（kit）：JSON/API 样板·单位·几何·度量·回执骨架的唯一实现 */
 export const KIT_PATH = path.join(HERE, 'kit.py');
+/** 几何底座（geo）：**机制层** —— 布尔/开孔/开槽/镜像/阵列/拉伸/放样/倒角/自动平滑。
+ *  只给动词、不给名词（不含任何形状默认值）；与 kit 同等由 KERNEL_BOOTSTRAP 保证在场。 */
+export const GEO_PATH = path.join(HERE, 'geo.py');
 export const RUNNER_PATH = path.join(HERE, 'runner.py');
 export const PERF_PATH = path.join(HERE, 'perf.py');
 export const VIEW_PATH = path.join(HERE, 'view.py');
@@ -94,7 +97,7 @@ export const SHAPE_PATH = path.join(HERE, 'shapegen.py');
 export const PIPELINE_PATH = path.join(HERE, 'pipeline.py');
 /**
  * 用户 Blender 配置目录（GPU 偏好所在）—— 无头进程默认读不到它，Cycles 会静默回落 CPU。
- * 分享版默认 null（用系统默认配置）；要继承某套配置就设 DSH_BLENDER_USER_CONFIG / 配置项 blenderUserConfig。
+ * 分享版默认 null（用系统默认配置）；要继承某套配置就设 DSH_BLENDER_WM_USER_CONFIG / 配置项 blenderUserConfig。
  */
 export const USER_CONFIG_WIN = process.env.BLENDER_USER_CONFIG || CFG.blenderUserConfig || null;
 export const USER_SCRIPTS_WIN = process.env.BLENDER_USER_SCRIPTS || CFG.blenderUserScripts || null;
@@ -396,3 +399,5 @@ export const ACT_WRAPPER = (src) => [
 // kit 的**内容指纹**：并入每个模块的失效判据 ⇒ 改 kit 会让所有模块在下次调用时自动重注
 export const KIT_SRC = (() => { try { return fs.readFileSync(KIT_PATH, "utf8"); } catch (e) { return ""; } })();
 export const KIT_HASH = createHash("sha256").update(KIT_SRC).digest("hex").slice(0, 12);
+export const GEO_SRC = (() => { try { return fs.readFileSync(GEO_PATH, "utf8"); } catch (e) { return ""; } })();
+export const GEO_HASH = createHash("sha256").update(GEO_SRC).digest("hex").slice(0, 12);

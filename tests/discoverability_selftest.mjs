@@ -187,7 +187,7 @@ ok('重工具都在 catalog 里有细节条目', ['rt_headless', 'rt_job', 'rt_w
 // ── 真 HTTP 路由（不需要 Blender：catalog 本地直出、cmd 纠错也在本地）
 console.log('  隔离后端：http://127.0.0.1:' + String(PORT))
 const backend = spawn(process.execPath, [path.join(PKG, 'runtime', 'server.mjs'), '--port', String(PORT)], {
-  env: Object.assign({}, process.env, { DSH_BLENDER_WORKDIR: TMP, DSH_BLENDER_HTTP_PORT: String(PORT) }),
+  env: Object.assign({}, process.env, { DSH_BLENDER_WM_WORKDIR: TMP, DSH_BLENDER_WM_HTTP_PORT: String(PORT) }),
   stdio: ['ignore', 'pipe', 'pipe'],
 })
 let log = ''

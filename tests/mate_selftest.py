@@ -2,8 +2,8 @@
 """S3 自检：配合门（mate_check）/ 装配特征库（fit_help）/ 干涉报告（interference_report）。
 
 跑法：
-    blender_rt_headless(preload="view,contract", engine="none", outdir="D:\\DSH\\blender\\tmp\\mate_new",
-        script="_p=K.win_path('/home/sixtyseven67/DSH/dsh-blender-plugin/tests/mate_selftest.py');"
+    blender_rt_headless(preload="view,contract", engine="none", outdir="D:\\DSH\\blender-wm\\tmp\\mate_new",
+        script="_p=K.win_path('/home/sixtyseven67/DSH/测试/测试/blender-wm-bridge/tests/mate_selftest.py');"
                "exec(compile(open(_p,encoding='utf-8').read(),'x','exec'),globals())")
     # 或 blender -b --factory-startup --python tests/mate_selftest.py
 

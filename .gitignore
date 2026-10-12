@@ -3,7 +3,7 @@ __pycache__/
 *.pyc
 tmp/
 .scratch/
-dsh-blender.config.json
+dsh-blender-wm.config.json
 *.tgz
 *.zip
 *.log

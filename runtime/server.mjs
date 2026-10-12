@@ -18,7 +18,7 @@
  * 别人的租约生效时返回 409 {error:"leased", holder, expiresInMs}；调用方带 force:true 可抢占。
  * 单 agent 场景下 holder 由插件自动带上，互不干扰。
  *
- * 启动：node server.mjs [--port 9877]（缺省端口取 config.mjs：DSH_BLENDER_HTTP_PORT / 配置文件 / 9877）
+ * 启动：node server.mjs [--port 9887]（缺省端口取 config.mjs：DSH_BLENDER_WM_HTTP_PORT / 配置文件 / 9887）
  */
 import http from 'node:http';
 import fs from 'node:fs';
@@ -680,13 +680,13 @@ function killHolders(port, signal) {
 try {
   await engine.start();
 } catch (e) {
-  console.error('[blender-rt] 启动时未连上 addon（Blender 未运行或 addon 未监听 9876）：' + String((e && e.message) || e));
+  console.error('[blender-rt] 启动时未连上 addon（Blender 未运行或 addon 未监听 9886）：' + String((e && e.message) || e));
 }
 
 const onListening = () => console.log('[blender-rt] http://' + HOST + ':' + String(PORT) + '/  (routes: /health /status /doctor /who /frame.png /act /view /headless /plan /worker /txn /preset /lease)');
 let reclaimTries = 0;   // 夺端口最多 2 次，防止两个实例互踢成死循环
 
-// S9：端口被占（EADDRINUSE）时给可执行结论 —— 现场遇到过"僵死后端占着 9877、WSL 里看不到 PID"。
+// S9：端口被占（EADDRINUSE）时给可执行结论 —— 现场遇到过"僵死后端占着 9887、WSL 里看不到 PID"。
 // S10：不再只是"报错退出"，而是先确认占用者是死是活；死的直接 SIGKILL 夺回并重试 listen。
 server.on('error', async (e) => {
   const code = e && e.code;

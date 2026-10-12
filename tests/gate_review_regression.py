@@ -33,7 +33,7 @@
 
     blender_rt_headless(preload="audit,gate,printcheck,uv_tools,material", engine="none",
         factory_startup=True, timeout_ms=300000,
-        script_file="/home/sixtyseven67/DSH/dsh-blender-plugin/tests/gate_review_regression.py")
+        script_file="/home/sixtyseven67/DSH/测试/测试/blender-wm-bridge/tests/gate_review_regression.py")
     # 或： blender -b --factory-startup --python tests/gate_review_regression.py
 
 判据（全是状态/数值断言，不靠肉眼）：

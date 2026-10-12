@@ -10,14 +10,14 @@
  *   `DSH_LEASE_HOLDER` → `GET /who` 上活着的 holder 的顺序找一个 holder 带上；
  *   找不到就如实报 409，**不 force 抢占**（抢了会打断正在用 Blender 的那个会话）。
  *
- * 前置：后端在 127.0.0.1:9877（blender_viewport op=start）、Blender 在跑。
+ * 前置：后端在 127.0.0.1:9887（blender_viewport op=start）、Blender 在跑。
  * 用法：node tests/view_diag_selftest_runner.mjs [port]
  */
-const PORT = Number(process.argv[2] || process.env.DSH_BLENDER_PORT || 9877)
+const PORT = Number(process.argv[2] || process.env.DSH_BLENDER_WM_PORT || 9887)
 const BASE = 'http://127.0.0.1:' + String(PORT)
 
 const script = [
-  "_p = K.win_path(r'/home/sixtyseven67/DSH/dsh-blender-plugin/tests/view_diag_selftest.py')",
+  "_p = K.win_path(r'/home/sixtyseven67/DSH/测试/测试/blender-wm-bridge/tests/view_diag_selftest.py')",
   "exec(compile(open(_p, encoding='utf-8').read(), 'view_diag_selftest.py', 'exec'), globals())",
 ].join('\n')
 
